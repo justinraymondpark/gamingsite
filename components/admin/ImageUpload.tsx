@@ -11,6 +11,56 @@ type ImageUploadProps = {
   onCoverImageChange?: (coverImage: string | null) => void;
 };
 
+// Compress image using Canvas API
+const compressImage = async (file: File, maxWidth = 1920, quality = 0.85): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Calculate new dimensions while maintaining aspect ratio
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+
+        // Draw image on canvas
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to blob with compression
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to compress image'));
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+  });
+};
+
 export default function ImageUpload({ 
   images, 
   onImagesChange, 
@@ -44,24 +94,33 @@ export default function ImageUpload({
         continue;
       }
 
-      // Check file size (max 20MB)
+      // Check file size (max 20MB before compression)
       if (file.size > 20 * 1024 * 1024) {
         alert(`${file.name} is too large (max 20MB)`);
         continue;
       }
 
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
       try {
+        // Compress image
+        setUploadProgress(`Compressing ${i + 1}/${files.length}...`);
+        const compressedBlob = await compressImage(file);
+        const originalSizeKB = (file.size / 1024).toFixed(0);
+        const compressedSizeKB = (compressedBlob.size / 1024).toFixed(0);
+        console.log(`Compressed ${file.name}: ${originalSizeKB}KB → ${compressedSizeKB}KB`);
+
+        // Generate unique filename
+        const fileExt = 'jpg'; // Always use jpg after compression
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
         // Upload to Supabase Storage
+        setUploadProgress(`Uploading ${i + 1}/${files.length}...`);
         const { error: uploadError } = await supabase.storage
           .from('screenshots')
-          .upload(filePath, file, {
+          .upload(filePath, compressedBlob, {
             cacheControl: '3600',
-            upsert: false
+            upsert: false,
+            contentType: 'image/jpeg'
           });
 
         if (uploadError) {
