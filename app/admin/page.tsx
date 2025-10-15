@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import CreateContent from '@/components/admin/CreateContent';
 import ManageContent from '@/components/admin/ManageContent';
@@ -8,7 +9,21 @@ import ManageContent from '@/components/admin/ManageContent';
 type Tab = 'create' | 'manage';
 
 export default function AdminPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>('create');
+
+  // Handle URL parameters on mount
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const edit = searchParams.get('edit');
+    
+    // If there's an edit parameter, switch to manage tab
+    if (edit && (tab === 'manage' || edit.startsWith('note-') || edit.startsWith('review-'))) {
+      setActiveTab('manage');
+    } else if (tab === 'manage') {
+      setActiveTab('manage');
+    }
+  }, [searchParams]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">

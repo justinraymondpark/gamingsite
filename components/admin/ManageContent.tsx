@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import ImageUpload from './ImageUpload';
 
@@ -39,6 +40,7 @@ const PLATFORMS = [
 ];
 
 export default function ManageContent() {
+  const searchParams = useSearchParams();
   const [notes, setNotes] = useState<ContentItem[]>([]);
   const [reviews, setReviews] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +61,26 @@ export default function ManageContent() {
   useEffect(() => {
     loadContent();
   }, []);
+
+  // Handle URL edit parameter
+  useEffect(() => {
+    const edit = searchParams.get('edit');
+    if (edit && (notes.length > 0 || reviews.length > 0)) {
+      if (edit.startsWith('note-')) {
+        const noteId = parseInt(edit.replace('note-', ''));
+        const note = notes.find(n => n.id === noteId);
+        if (note) {
+          startEdit('note', note);
+        }
+      } else if (edit.startsWith('review-')) {
+        const reviewId = parseInt(edit.replace('review-', ''));
+        const review = reviews.find(r => r.id === reviewId);
+        if (review) {
+          startEdit('review', review);
+        }
+      }
+    }
+  }, [searchParams, notes, reviews]);
 
   const loadContent = async () => {
     setLoading(true);
