@@ -24,8 +24,8 @@ export default function CreateContent() {
   // Selected game & content type
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [contentType, setContentType] = useState<ContentType>(null);
-  const [existingNotes, setExistingNotes] = useState<any[]>([]);
-  const [existingReviews, setExistingReviews] = useState<any[]>([]);
+  const [existingNotes, setExistingNotes] = useState<Array<{ id: number; content: string; created_at: string; game: Game | null }>>([]);
+  const [existingReviews, setExistingReviews] = useState<Array<{ id: number; title: string; rating: number; created_at: string; game: Game | null }>>([]);
   
   // Quick note form
   const [noteContent, setNoteContent] = useState('');
@@ -84,7 +84,7 @@ export default function CreateContent() {
 
     // Combine and deduplicate
     const allGames = [...(recentNotes || []), ...(recentReviews || [])]
-      .map((item: any) => item.game)
+      .map((item) => (item as unknown as { game: Game | null }).game)
       .filter((game): game is Game => game !== null);
 
     // Remove duplicates by game id

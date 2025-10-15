@@ -59,7 +59,7 @@ export default function QuickNoteForm() {
           Quick Gaming Note
         </h2>
         <p className="text-[var(--foreground-muted)] mb-6">
-          Share a quick thought about a game you're playing (max 280 characters).
+          Share a quick thought about a game you&apos;re playing (max 280 characters).
         </p>
 
         {successMessage && (

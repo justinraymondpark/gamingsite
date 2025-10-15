@@ -57,7 +57,7 @@ export default function ImageUpload({
 
       try {
         // Upload to Supabase Storage
-        const { data, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('screenshots')
           .upload(filePath, file, {
             cacheControl: '3600',
@@ -75,9 +75,9 @@ export default function ImageUpload({
           .getPublicUrl(filePath);
 
         newImageUrls.push(publicUrl);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error uploading image:', error);
-        alert(`Failed to upload ${file.name}: ${error.message || 'Unknown error'}\n\nMake sure you've created the "screenshots" bucket in Supabase Storage!`);
+        alert(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}\n\nMake sure you've created the "screenshots" bucket in Supabase Storage!`);
       }
     }
 

@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import type { QuickNote, Review } from '@/lib/supabase';
 import QuickNoteImages from '@/components/QuickNoteImages';
 
 async function getRecentContent() {
@@ -75,7 +74,7 @@ export default async function Home() {
                   Recent Reviews
                 </h2>
                 <div className="grid gap-6 md:grid-cols-2">
-                  {reviews.map((review: any) => (
+                  {reviews.map((review) => (
                     <Link
                       key={review.id}
                       href={`/review/${review.id}`}
@@ -121,7 +120,7 @@ export default async function Home() {
                   Quick Notes
                 </h2>
                 <div className="space-y-4">
-                  {notes.map((note: any) => (
+                  {notes.map((note) => (
                     <div
                       key={note.id}
                       className="bg-[var(--surface)] rounded-lg p-5 border border-[var(--border)] hover:border-[var(--accent-dim)] transition-colors"
