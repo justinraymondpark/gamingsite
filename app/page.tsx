@@ -105,9 +105,16 @@ export default async function Home() {
                           <h3 className="text-xl font-bold text-[var(--foreground)] mb-1 group-hover:text-[var(--accent)] transition-colors">
                             {review.title}
                           </h3>
-                          <p className="text-sm text-[var(--foreground-muted)]">
-                            {review.game?.name}
-                          </p>
+                          {review.game && (
+                            <p className="text-sm">
+                              <Link
+                                href={`/game/${review.game.id}`}
+                                className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors font-semibold"
+                              >
+                                {review.game.name}
+                              </Link>
+                            </p>
+                          )}
                         </div>
                       </div>
                     </Link>
@@ -147,9 +154,14 @@ export default async function Home() {
                           )}
                           
                           <div className="flex items-center gap-2 text-sm">
-                            <span className="text-[var(--accent)] font-semibold">
-                              {note.game?.name}
-                            </span>
+                            {note.game && (
+                              <Link
+                                href={`/game/${note.game.id}`}
+                                className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors font-semibold"
+                              >
+                                {note.game.name}
+                              </Link>
+                            )}
                             <span className="text-[var(--foreground-muted)]">•</span>
                             <span className="text-[var(--foreground-muted)]">
                               {new Date(note.created_at).toLocaleDateString()}

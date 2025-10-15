@@ -60,9 +60,14 @@ export default async function ReviewPage({ params }: { params: { id: string } })
           <h1 className="text-4xl font-bold text-[var(--foreground)] mb-3">
             {review.title}
           </h1>
-          <h2 className="text-2xl text-[var(--accent)] mb-4">
-            {review.game?.name}
-          </h2>
+          {review.game && (
+            <Link
+              href={`/game/${review.game.id}`}
+              className="text-2xl text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors inline-block mb-4"
+            >
+              {review.game.name}
+            </Link>
+          )}
           
           {/* Meta Info */}
           <div className="flex flex-wrap gap-4 items-center text-sm">
