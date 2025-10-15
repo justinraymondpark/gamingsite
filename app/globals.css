@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  /* Deep indigo base with electric lime accents */
+  --background: #0f172a;
+  --surface: #1e293b;
+  --surface-light: #334155;
+  --foreground: #f1f5f9;
+  --foreground-muted: #94a3b8;
+  --accent: #84cc16;
+  --accent-hover: #a3e635;
+  --accent-dim: #65a30d;
+  --accent-text: #0a0a0a; /* Dark text for accent buttons */
+  --border: #334155;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-light: var(--surface-light);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-text: var(--accent-text);
+  --color-border: var(--border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Smooth transitions for interactive elements */
+button, a, input, textarea {
+  transition: all 0.2s ease;
+}
