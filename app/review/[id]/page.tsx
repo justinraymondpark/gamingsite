@@ -4,6 +4,9 @@ import ReactMarkdown from 'react-markdown';
 import { notFound } from 'next/navigation';
 import ImageGallery from '@/components/ImageGallery';
 
+// Revalidate every 10 seconds to show fresh content
+export const revalidate = 10;
+
 async function getReview(id: string) {
   const { data, error } = await supabase
     .from('reviews')

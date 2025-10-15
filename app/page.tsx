@@ -2,6 +2,9 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import QuickNoteImages from '@/components/QuickNoteImages';
 
+// Revalidate every 10 seconds to show fresh content
+export const revalidate = 10;
+
 async function getRecentContent() {
   const { data: notes } = await supabase
     .from('quick_notes')
