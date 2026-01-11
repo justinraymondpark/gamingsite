@@ -1,4 +1,6 @@
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import type { Game, QuickNote, Review } from '@/lib/types';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import QuickNoteImages from '@/components/QuickNoteImages';
@@ -8,43 +10,56 @@ export const revalidate = 10;
 
 async function getGameContent(gameId: string) {
   // Get game details
-  const { data: game } = await supabase
-    .from('games')
-    .select('*')
-    .eq('id', gameId)
-    .single();
-
-  if (!game) return null;
+  const gameDoc = await getDoc(doc(db, 'games', gameId));
+  if (!gameDoc.exists()) return null;
+  const game = { id: gameDoc.id, ...gameDoc.data() } as Game;
 
   // Get all quick notes for this game
-  const { data: notes } = await supabase
-    .from('quick_notes')
-    .select(`
-      *,
-      game:games(*)
-    `)
-    .eq('game_id', gameId)
-    .order('created_at', { ascending: false });
+  // Note: Filtering by game_id requires fetching all or using an index.
+  // For small scale, fetching all notes and filtering in memory is okay,
+  // but better is 'where' query. If index missing, it might error or warn.
+  // We'll try 'where' query. If it fails due to missing index, we might need to create it.
+  // However, simple equality queries usually don't need composite index unless combined with orderBy.
+  // If we want orderBy created_at, we need index (game_id, created_at).
+  // Strategy: Query by game_id, sort in memory.
+
+  const notesQuery = query(collection(db, 'quick_notes'), where('game_id', '==', gameId));
+  const notesSnapshot = await getDocs(notesQuery);
+  const notes = notesSnapshot.docs
+    .map(d => ({ id: d.id, ...d.data() } as QuickNote))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  // Attach game object to notes
+  notes.forEach(note => note.game = game);
 
   // Get all reviews for this game
-  const { data: reviews } = await supabase
-    .from('reviews')
-    .select(`
-      *,
-      game:games(*)
-    `)
-    .eq('game_id', gameId)
-    .order('created_at', { ascending: false });
+  const reviewsQuery = query(collection(db, 'reviews'), where('game_id', '==', gameId));
+  const reviewsSnapshot = await getDocs(reviewsQuery);
+  const reviews = reviewsSnapshot.docs
+    .map(d => ({ id: d.id, ...d.data() } as Review))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  // Attach game object to reviews
+  reviews.forEach(review => review.game = game);
 
   return {
     game,
-    notes: notes || [],
-    reviews: reviews || []
+    notes,
+    reviews
   };
 }
 
 export default async function GamePage({ params }: { params: { id: string } }) {
-  const data = await getGameContent(params.id);
+  // params.id is already async in Next.js 15, but let's check if we need await params
+  // Next.js 15 breaking change: params is a promise.
+  // Wait, the provided files show: export default async function GamePage({ params }: { params: { id: string } })
+  // In Next.js 15, params is Promise<{ id: string }>.
+  // I should double check if the provided code was already Next 15 compliant or if I need to await it.
+  // The package.json says "next": "15.5.5".
+  // So params is a promise.
+
+  const resolvedParams = await params;
+  const data = await getGameContent(resolvedParams.id);
 
   if (!data) {
     notFound();

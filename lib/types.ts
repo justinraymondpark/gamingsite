@@ -1,12 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Shared types for the application
 
 export type Game = {
-  id: number;
+  id: string; // Document ID (usually String(rawg_id))
   rawg_id: number;
   name: string;
   background_image: string;
@@ -17,8 +12,8 @@ export type Game = {
 };
 
 export type QuickNote = {
-  id: number;
-  game_id: number;
+  id: string;
+  game_id: string;
   content: string;
   images: string[];
   cover_image?: string;
@@ -27,8 +22,8 @@ export type QuickNote = {
 };
 
 export type Review = {
-  id: number;
-  game_id: number;
+  id: string;
+  game_id: string;
   title: string;
   content: string;
   rating: number;

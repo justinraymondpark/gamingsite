@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { searchGames, type RAWGGame } from '@/lib/rawg';
-import { supabase, type Game } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { collection, doc, getDoc, setDoc, addDoc, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import type { Game } from '@/lib/types';
 import ImageUpload from './ImageUpload';
 
 type ContentType = 'note' | 'review' | null;
@@ -24,8 +26,8 @@ export default function CreateContent() {
   // Selected game & content type
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [contentType, setContentType] = useState<ContentType>(null);
-  const [existingNotes, setExistingNotes] = useState<Array<{ id: number; content: string; created_at: string; game: Game | null }>>([]);
-  const [existingReviews, setExistingReviews] = useState<Array<{ id: number; title: string; rating: number; created_at: string; game: Game | null }>>([]);
+  const [existingNotes, setExistingNotes] = useState<Array<{ id: string; content: string; created_at: string; game: Game | null }>>([]);
+  const [existingReviews, setExistingReviews] = useState<Array<{ id: string; title: string; rating: number; created_at: string; game: Game | null }>>([]);
   
   // Quick note form
   const [noteContent, setNoteContent] = useState('');
@@ -69,49 +71,55 @@ export default function CreateContent() {
   }, [searchQuery]);
 
   const loadRecentGames = async () => {
-    // Get games from recent notes and reviews
-    const { data: recentNotes } = await supabase
-      .from('quick_notes')
-      .select('game:games(*)')
-      .order('created_at', { ascending: false })
-      .limit(10);
+    // Get recent notes and reviews
+    const recentNotesSnapshot = await getDocs(query(collection(db, 'quick_notes'), orderBy('created_at', 'desc'), limit(10)));
+    const recentReviewsSnapshot = await getDocs(query(collection(db, 'reviews'), orderBy('created_at', 'desc'), limit(10)));
 
-    const { data: recentReviews } = await supabase
-      .from('reviews')
-      .select('game:games(*)')
-      .order('created_at', { ascending: false })
-      .limit(10);
+    // Get game IDs
+    const noteGameIds = recentNotesSnapshot.docs.map(doc => doc.data().game_id);
+    const reviewGameIds = recentReviewsSnapshot.docs.map(doc => doc.data().game_id);
+    const allGameIds = Array.from(new Set([...noteGameIds, ...reviewGameIds]));
 
-    // Combine and deduplicate
-    const allGames = [...(recentNotes || []), ...(recentReviews || [])]
-      .map((item) => (item as unknown as { game: Game | null }).game)
-      .filter((game): game is Game => game !== null);
+    // Fetch games
+    const games: Game[] = [];
+    for (const gameId of allGameIds) {
+      const gameDoc = await getDoc(doc(db, 'games', gameId));
+      if (gameDoc.exists()) {
+        games.push({ id: gameDoc.id, ...gameDoc.data() } as Game);
+      }
+    }
 
-    // Remove duplicates by game id
-    const uniqueGames = allGames.filter(
-      (game, index, self) => self.findIndex(g => g.id === game.id) === index
-    );
-
-    setRecentGames(uniqueGames.slice(0, 10));
+    setRecentGames(games.slice(0, 10));
   };
 
-  const loadExistingContent = async (gameId: number) => {
-    // Load existing notes for this game
-    const { data: notes } = await supabase
-      .from('quick_notes')
-      .select('*')
-      .eq('game_id', gameId)
-      .order('created_at', { ascending: false });
+  const loadExistingContent = async (gameId: string) => {
+    // In Firestore, we have to filter in client or create an index.
+    // For now, let's fetch all and filter client side or assume index exists if we add 'where' clause.
+    // However, 'where' requires an index for ordering.
+    // Let's just fetch all for now since it's a personal site, or add simple query.
 
-    // Load existing reviews for this game
-    const { data: reviews } = await supabase
-      .from('reviews')
-      .select('*')
-      .eq('game_id', gameId)
-      .order('created_at', { ascending: false });
+    // Using simple query without composite index might require index creation.
+    // Since we are sorting by created_at, we need an index on (game_id, created_at).
+    // To avoid index creation during dev, we can fetch all by game_id and sort in JS.
 
-    setExistingNotes(notes || []);
-    setExistingReviews(reviews || []);
+    const notesQuery = query(collection(db, 'quick_notes'));
+    const notesSnapshot = await getDocs(notesQuery);
+    const notes = notesSnapshot.docs
+      .map(d => ({ id: d.id, ...d.data() } as { id: string; game_id: string; content: string; created_at: string }))
+      .filter(n => n.game_id === gameId)
+      .map(n => ({ ...n, game: null })) // Add game: null to match type
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const reviewsQuery = query(collection(db, 'reviews'));
+    const reviewsSnapshot = await getDocs(reviewsQuery);
+    const reviews = reviewsSnapshot.docs
+      .map(d => ({ id: d.id, ...d.data() } as { id: string; game_id: string; title: string; rating: number; created_at: string }))
+      .filter(r => r.game_id === gameId)
+      .map(r => ({ ...r, game: null })) // Add game: null to match type
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    setExistingNotes(notes);
+    setExistingReviews(reviews);
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -125,40 +133,30 @@ export default function CreateContent() {
   };
 
   const handleSelectGame = async (rawgGame: RAWGGame) => {
-    // First, add game to database if it doesn't exist
-    const { data: existingGame } = await supabase
-      .from('games')
-      .select('*')
-      .eq('rawg_id', rawgGame.id)
-      .single();
+    const gameId = String(rawgGame.id);
+    const gameRef = doc(db, 'games', gameId);
+    const gameSnap = await getDoc(gameRef);
 
     let selectedGameData: Game;
-    if (existingGame) {
-      selectedGameData = existingGame;
-      setSelectedGame(existingGame);
-    } else {
-      const { data: newGame, error } = await supabase
-        .from('games')
-        .insert({
-          rawg_id: rawgGame.id,
-          name: rawgGame.name,
-          background_image: rawgGame.background_image,
-          released: rawgGame.released,
-          genres: rawgGame.genres.map(g => g.name),
-          platforms: rawgGame.platforms.map(p => p.platform.name),
-        })
-        .select()
-        .single();
 
-      if (error) {
-        alert('Failed to add game');
-        return;
-      }
-      selectedGameData = newGame;
-      setSelectedGame(newGame);
+    if (gameSnap.exists()) {
+      selectedGameData = { id: gameSnap.id, ...gameSnap.data() } as Game;
+    } else {
+      const newGame = {
+        rawg_id: rawgGame.id,
+        name: rawgGame.name,
+        background_image: rawgGame.background_image,
+        released: rawgGame.released,
+        genres: rawgGame.genres.map(g => g.name),
+        platforms: rawgGame.platforms.map(p => p.platform.name),
+        created_at: new Date().toISOString(),
+      };
+
+      await setDoc(gameRef, newGame);
+      selectedGameData = { id: gameId, ...newGame };
     }
     
-    // Load existing content for this game
+    setSelectedGame(selectedGameData);
     await loadExistingContent(selectedGameData.id);
     
     // Clear search and show content type selection
@@ -197,28 +195,28 @@ export default function CreateContent() {
     if (!selectedGame || !noteContent.trim()) return;
 
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from('quick_notes')
-      .insert({
+
+    try {
+      await addDoc(collection(db, 'quick_notes'), {
         game_id: selectedGame.id,
         content: noteContent.trim(),
         images: noteImages,
         cover_image: noteCoverImage,
+        created_at: new Date().toISOString(),
       });
 
-    setIsSubmitting(false);
-
-    if (error) {
+      setSuccessMessage('Quick note posted! 🎉');
+      setTimeout(() => {
+        setSuccessMessage('');
+        resetForm();
+        loadRecentGames(); // Reload recent games
+      }, 2000);
+    } catch (error) {
+      console.error('Error adding note: ', error);
       alert('Failed to save note');
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSuccessMessage('Quick note posted! 🎉');
-    setTimeout(() => {
-      setSuccessMessage('');
-      resetForm();
-      loadRecentGames(); // Reload recent games
-    }, 2000);
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -226,9 +224,9 @@ export default function CreateContent() {
     if (!selectedGame || !reviewTitle.trim() || !reviewContent.trim()) return;
 
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from('reviews')
-      .insert({
+
+    try {
+      await addDoc(collection(db, 'reviews'), {
         game_id: selectedGame.id,
         title: reviewTitle.trim(),
         content: reviewContent.trim(),
@@ -239,21 +237,22 @@ export default function CreateContent() {
         cons: cons.filter(c => c.trim()),
         images: reviewImages,
         cover_image: reviewCoverImage,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
 
-    setIsSubmitting(false);
-
-    if (error) {
+      setSuccessMessage('Review published! 🎉');
+      setTimeout(() => {
+        setSuccessMessage('');
+        resetForm();
+        loadRecentGames(); // Reload recent games
+      }, 2000);
+    } catch (error) {
+      console.error('Error adding review: ', error);
       alert('Failed to save review');
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSuccessMessage('Review published! 🎉');
-    setTimeout(() => {
-      setSuccessMessage('');
-      resetForm();
-      loadRecentGames(); // Reload recent games
-    }, 2000);
   };
 
   // Helper functions for pros/cons

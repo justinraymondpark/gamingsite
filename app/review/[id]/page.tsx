@@ -1,4 +1,6 @@
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import type { Review, Game } from '@/lib/types';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { notFound } from 'next/navigation';
@@ -8,21 +10,23 @@ import ImageGallery from '@/components/ImageGallery';
 export const revalidate = 10;
 
 async function getReview(id: string) {
-  const { data, error } = await supabase
-    .from('reviews')
-    .select(`
-      *,
-      game:games(*)
-    `)
-    .eq('id', id)
-    .single();
+  const reviewDoc = await getDoc(doc(db, 'reviews', id));
+  if (!reviewDoc.exists()) return null;
+  const review = { id: reviewDoc.id, ...reviewDoc.data() } as Review;
 
-  if (error || !data) return null;
-  return data;
+  if (review.game_id) {
+    const gameDoc = await getDoc(doc(db, 'games', review.game_id));
+    if (gameDoc.exists()) {
+      review.game = { id: gameDoc.id, ...gameDoc.data() } as Game;
+    }
+  }
+
+  return review;
 }
 
 export default async function ReviewPage({ params }: { params: { id: string } }) {
-  const review = await getReview(params.id);
+  const resolvedParams = await params;
+  const review = await getReview(resolvedParams.id);
 
   if (!review) {
     notFound();
@@ -48,8 +52,8 @@ export default async function ReviewPage({ params }: { params: { id: string } })
         {(review.cover_image || review.game?.background_image) && (
           <div className="aspect-video rounded-lg overflow-hidden mb-8">
             <img
-              src={review.cover_image || review.game.background_image}
-              alt={review.game.name}
+              src={review.cover_image || review.game?.background_image}
+              alt={review.game?.name || 'Review cover'}
               className="w-full h-full object-cover"
             />
           </div>
