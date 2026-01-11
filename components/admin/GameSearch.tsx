@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { searchGames, type RAWGGame } from '@/lib/rawg';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 export default function GameSearch() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -22,22 +23,32 @@ export default function GameSearch() {
 
   const handleAddGame = async (game: RAWGGame) => {
     try {
-      const { error } = await supabase
-        .from('games')
-        .insert({
-          rawg_id: game.id,
-          name: game.name,
-          background_image: game.background_image,
-          released: game.released,
-          genres: game.genres.map(g => g.name),
-          platforms: game.platforms.map(p => p.platform.name),
-        });
+      const gameId = String(game.id);
+      const gameRef = doc(db, 'games', gameId);
+      const gameSnap = await getDoc(gameRef);
 
-      if (error && !error.message.includes('duplicate')) {
-        console.error('Error adding game:', error);
-        alert('Failed to add game');
+      if (gameSnap.exists()) {
+        // Already exists
+        setAddedGames(prev => new Set(prev).add(game.id));
+        setTimeout(() => {
+          setAddedGames(prev => {
+            const next = new Set(prev);
+            next.delete(game.id);
+            return next;
+          });
+        }, 2000);
         return;
       }
+
+      await setDoc(gameRef, {
+        rawg_id: game.id,
+        name: game.name,
+        background_image: game.background_image,
+        released: game.released,
+        genres: game.genres.map(g => g.name),
+        platforms: game.platforms.map(p => p.platform.name),
+        created_at: new Date().toISOString(),
+      });
 
       setAddedGames(prev => new Set(prev).add(game.id));
       setTimeout(() => {
@@ -49,6 +60,7 @@ export default function GameSearch() {
       }, 2000);
     } catch (error) {
       console.error('Error adding game:', error);
+      alert('Failed to add game');
     }
   };
 

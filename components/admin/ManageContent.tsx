@@ -2,18 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import type { Game } from '@/lib/types';
 import ImageUpload from './ImageUpload';
 
 type ContentItem = {
-  id: number;
-  game_id: number;
+  id: string;
+  game_id: string;
   created_at: string;
-  game?: {
-    id: number;
-    name: string;
-    background_image: string;
-  };
+  game?: Game;
   // Quick note fields
   content?: string;
   // Review fields
@@ -30,7 +28,7 @@ type ContentItem = {
 
 type EditMode = {
   type: 'note' | 'review';
-  id: number;
+  id: string;
   data: ContentItem;
 } | null;
 
@@ -67,13 +65,13 @@ export default function ManageContent() {
     const edit = searchParams.get('edit');
     if (edit && (notes.length > 0 || reviews.length > 0)) {
       if (edit.startsWith('note-')) {
-        const noteId = parseInt(edit.replace('note-', ''));
+        const noteId = edit.replace('note-', '');
         const note = notes.find(n => n.id === noteId);
         if (note) {
           startEdit('note', note);
         }
       } else if (edit.startsWith('review-')) {
-        const reviewId = parseInt(edit.replace('review-', ''));
+        const reviewId = edit.replace('review-', '');
         const review = reviews.find(r => r.id === reviewId);
         if (review) {
           startEdit('review', review);
@@ -85,33 +83,62 @@ export default function ManageContent() {
   const loadContent = async () => {
     setLoading(true);
     
-    const { data: notesData } = await supabase
-      .from('quick_notes')
-      .select('*, game:games(*)')
-      .order('created_at', { ascending: false });
+    // Fetch all notes
+    const notesQuery = query(collection(db, 'quick_notes'), orderBy('created_at', 'desc'));
+    const notesSnapshot = await getDocs(notesQuery);
+
+    // Fetch all reviews
+    const reviewsQuery = query(collection(db, 'reviews'), orderBy('created_at', 'desc'));
+    const reviewsSnapshot = await getDocs(reviewsQuery);
+
+    const notesData = notesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentItem));
+    const reviewsData = reviewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentItem));
+
+    // Fetch related games
+    // Note: This could be optimized by caching games or fetching only unique game IDs
+    const gameIds = new Set([
+      ...notesData.map(n => n.game_id),
+      ...reviewsData.map(r => r.game_id)
+    ]);
+
+    const gamesMap: Record<string, Game> = {};
+    for (const gameId of gameIds) {
+      if (gameId) {
+        const gameDoc = await getDoc(doc(db, 'games', gameId));
+        if (gameDoc.exists()) {
+          gamesMap[gameId] = { id: gameDoc.id, ...gameDoc.data() } as Game;
+        }
+      }
+    }
     
-    const { data: reviewsData } = await supabase
-      .from('reviews')
-      .select('*, game:games(*)')
-      .order('created_at', { ascending: false });
+    // Attach games to content
+    const notesWithGames = notesData.map(note => ({
+      ...note,
+      game: gamesMap[note.game_id]
+    }));
     
-    setNotes(notesData || []);
-    setReviews(reviewsData || []);
+    const reviewsWithGames = reviewsData.map(review => ({
+      ...review,
+      game: gamesMap[review.game_id]
+    }));
+
+    setNotes(notesWithGames);
+    setReviews(reviewsWithGames);
     setLoading(false);
   };
 
-  const handleDelete = async (type: 'note' | 'review', id: number) => {
+  const handleDelete = async (type: 'note' | 'review', id: string) => {
     if (!confirm('Are you sure you want to delete this?')) return;
 
-    const table = type === 'note' ? 'quick_notes' : 'reviews';
-    const { error } = await supabase.from(table).delete().eq('id', id);
+    const collectionName = type === 'note' ? 'quick_notes' : 'reviews';
 
-    if (error) {
+    try {
+      await deleteDoc(doc(db, collectionName, id));
+      loadContent();
+    } catch (error) {
+      console.error('Failed to delete:', error);
       alert('Failed to delete');
-      return;
     }
-
-    loadContent();
   };
 
   const startEdit = (type: 'note' | 'review', item: ContentItem) => {
@@ -150,25 +177,15 @@ export default function ManageContent() {
   const saveEdit = async () => {
     if (!editMode) return;
 
-    if (editMode.type === 'note') {
-      const { error } = await supabase
-        .from('quick_notes')
-        .update({ 
+    try {
+      if (editMode.type === 'note') {
+        await updateDoc(doc(db, 'quick_notes', editMode.id), {
           content: editContent,
           images: editImages,
           cover_image: editCoverImage,
-        })
-        .eq('id', editMode.id);
-
-      if (error) {
-        console.error('Failed to update note:', error);
-        alert(`Failed to update note: ${error.message}`);
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from('reviews')
-        .update({
+        });
+      } else {
+        await updateDoc(doc(db, 'reviews', editMode.id), {
           title: editTitle,
           content: editReviewContent,
           rating: editRating,
@@ -179,18 +196,15 @@ export default function ManageContent() {
           images: editImages,
           cover_image: editCoverImage,
           updated_at: new Date().toISOString(),
-        })
-        .eq('id', editMode.id);
-
-      if (error) {
-        console.error('Failed to update review:', error);
-        alert(`Failed to update review: ${error.message}`);
-        return;
+        });
       }
-    }
 
-    cancelEdit();
-    loadContent();
+      cancelEdit();
+      loadContent();
+    } catch (error) {
+      console.error('Failed to update:', error);
+      alert(`Failed to update: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   if (loading) {

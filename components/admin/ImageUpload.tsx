@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 type ImageUploadProps = {
   images: string[];
@@ -111,32 +112,23 @@ export default function ImageUpload({
         // Generate unique filename
         const fileExt = 'jpg'; // Always use jpg after compression
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${fileName}`;
+        const filePath = `screenshots/${fileName}`;
 
-        // Upload to Supabase Storage
+        // Upload to Firebase Storage
         setUploadProgress(`Uploading ${i + 1}/${files.length}...`);
-        const { error: uploadError } = await supabase.storage
-          .from('screenshots')
-          .upload(filePath, compressedBlob, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: 'image/jpeg'
-          });
+        const storageRef = ref(storage, filePath);
 
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          throw new Error(uploadError.message);
-        }
+        await uploadBytes(storageRef, compressedBlob, {
+          contentType: 'image/jpeg',
+          cacheControl: 'public, max-age=3600'
+        });
 
         // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('screenshots')
-          .getPublicUrl(filePath);
-
+        const publicUrl = await getDownloadURL(storageRef);
         newImageUrls.push(publicUrl);
       } catch (error) {
         console.error('Error uploading image:', error);
-        alert(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}\n\nMake sure you've created the "screenshots" bucket in Supabase Storage!`);
+        alert(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}\n\nMake sure your Firebase Storage rules allow uploads!`);
       }
     }
 
@@ -146,17 +138,20 @@ export default function ImageUpload({
   };
 
   const removeImage = async (imageUrl: string, index: number) => {
-    // Extract filename from URL
-    const urlParts = imageUrl.split('/');
-    const fileName = urlParts[urlParts.length - 1];
-
     try {
-      // Delete from Supabase Storage
-      await supabase.storage
-        .from('screenshots')
-        .remove([fileName]);
+      // Create a reference to the file to delete
+      // We need to parse the URL to get the path
+      // Firebase Storage URLs are like: https://firebasestorage.googleapis.com/.../o/screenshots%2Ffilename.jpg?alt=...
+      const urlObj = new URL(imageUrl);
+      const path = decodeURIComponent(urlObj.pathname.split('/o/')[1]);
+
+      if (path) {
+        const fileRef = ref(storage, path);
+        await deleteObject(fileRef);
+      }
     } catch (error) {
       console.error('Error deleting image:', error);
+      // Even if delete fails (e.g. 404), remove from UI
     }
 
     // Remove from state

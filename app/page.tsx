@@ -1,4 +1,6 @@
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
+import type { Game, QuickNote, Review } from '@/lib/types';
 import Link from 'next/link';
 import QuickNoteImages from '@/components/QuickNoteImages';
 
@@ -6,25 +8,38 @@ import QuickNoteImages from '@/components/QuickNoteImages';
 export const revalidate = 10;
 
 async function getRecentContent() {
-  const { data: notes } = await supabase
-    .from('quick_notes')
-    .select(`
-      *,
-      game:games(*)
-    `)
-    .order('created_at', { ascending: false })
-    .limit(5);
+  const notesQuery = query(collection(db, 'quick_notes'), orderBy('created_at', 'desc'), limit(5));
+  const reviewsQuery = query(collection(db, 'reviews'), orderBy('created_at', 'desc'), limit(5));
 
-  const { data: reviews } = await supabase
-    .from('reviews')
-    .select(`
-      *,
-      game:games(*)
-    `)
-    .order('created_at', { ascending: false })
-    .limit(5);
+  const [notesSnapshot, reviewsSnapshot] = await Promise.all([
+    getDocs(notesQuery),
+    getDocs(reviewsQuery)
+  ]);
 
-  return { notes: notes || [], reviews: reviews || [] };
+  const notesData = notesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuickNote));
+  const reviewsData = reviewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
+
+  // Fetch related games
+  const gameIds = new Set([
+    ...notesData.map(n => n.game_id),
+    ...reviewsData.map(r => r.game_id)
+  ]);
+
+  const gamesMap: Record<string, Game> = {};
+  await Promise.all(Array.from(gameIds).map(async (gameId) => {
+    if (gameId) {
+      const gameDoc = await getDoc(doc(db, 'games', gameId));
+      if (gameDoc.exists()) {
+        gamesMap[gameId] = { id: gameDoc.id, ...gameDoc.data() } as Game;
+      }
+    }
+  }));
+
+  // Attach games
+  const notes = notesData.map(note => ({ ...note, game: gamesMap[note.game_id] }));
+  const reviews = reviewsData.map(review => ({ ...review, game: gamesMap[review.game_id] }));
+
+  return { notes, reviews };
 }
 
 export default async function Home() {
@@ -88,7 +103,7 @@ export default async function Home() {
                           <div className="aspect-video relative overflow-hidden">
                             <img
                               src={review.cover_image || review.game.background_image}
-                              alt={review.game.name}
+                              alt={review.game?.name || 'Game cover'}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                             />
                           </div>
@@ -107,12 +122,11 @@ export default async function Home() {
                           </h3>
                           {review.game && (
                             <p className="text-sm">
-                              <Link
-                                href={`/game/${review.game.id}`}
-                                className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors font-semibold"
+                              <span
+                                className="text-[var(--accent)] font-semibold"
                               >
                                 {review.game.name}
-                              </Link>
+                              </span>
                             </p>
                           )}
                         </div>
