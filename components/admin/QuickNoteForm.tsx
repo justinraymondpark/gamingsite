@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, type Game } from '@/lib/supabase';
+import { firestoreHelpers, type Game } from '@/lib/firebase';
 
 export default function QuickNoteForm() {
   const [games, setGames] = useState<Game[]>([]);
-  const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -15,12 +15,8 @@ export default function QuickNoteForm() {
   }, []);
 
   const loadGames = async () => {
-    const { data } = await supabase
-      .from('games')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (data) setGames(data);
+    const data = await firestoreHelpers.getGames();
+    setGames(data);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,24 +25,23 @@ export default function QuickNoteForm() {
 
     setIsSubmitting(true);
 
-    const { error } = await supabase
-      .from('quick_notes')
-      .insert({
+    try {
+      await firestoreHelpers.addQuickNote({
         game_id: selectedGameId,
         content: content.trim(),
+        images: [],
       });
 
-    setIsSubmitting(false);
-
-    if (error) {
+      setContent('');
+      setSelectedGameId(null);
+      setSuccessMessage('Note added successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Error saving note:', error);
       alert('Failed to save note');
-      return;
     }
 
-    setContent('');
-    setSelectedGameId(null);
-    setSuccessMessage('Note added successfully!');
-    setTimeout(() => setSuccessMessage(''), 3000);
+    setIsSubmitting(false);
   };
 
   const characterCount = content.length;
@@ -75,7 +70,7 @@ export default function QuickNoteForm() {
             </label>
             <select
               value={selectedGameId || ''}
-              onChange={(e) => setSelectedGameId(Number(e.target.value))}
+              onChange={(e) => setSelectedGameId(e.target.value || null)}
               required
               className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             >

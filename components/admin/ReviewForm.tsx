@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, type Game } from '@/lib/supabase';
+import { firestoreHelpers, type Game } from '@/lib/firebase';
 
 const PLATFORMS = [
   'PC', 'PlayStation 5', 'PlayStation 4', 'Xbox Series X/S', 
@@ -10,7 +10,7 @@ const PLATFORMS = [
 
 export default function ReviewForm() {
   const [games, setGames] = useState<Game[]>([]);
-  const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [rating, setRating] = useState<number>(7);
@@ -26,12 +26,8 @@ export default function ReviewForm() {
   }, []);
 
   const loadGames = async () => {
-    const { data } = await supabase
-      .from('games')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (data) setGames(data);
+    const data = await firestoreHelpers.getGames();
+    setGames(data);
   };
 
   const handlePlatformToggle = (platform: string) => {
@@ -71,37 +67,36 @@ export default function ReviewForm() {
 
     setIsSubmitting(true);
 
-    const { error } = await supabase
-      .from('reviews')
-      .insert({
+    try {
+      await firestoreHelpers.addReview({
         game_id: selectedGameId,
         title: title.trim(),
         content: content.trim(),
         rating,
         platforms_played: platformsPlayed,
-        playtime_hours: playtimeHours ? parseFloat(playtimeHours) : null,
+        playtime_hours: playtimeHours ? parseFloat(playtimeHours) : undefined,
         pros: pros.filter(p => p.trim()),
         cons: cons.filter(c => c.trim()),
+        images: [],
       });
 
-    setIsSubmitting(false);
-
-    if (error) {
+      // Reset form
+      setTitle('');
+      setContent('');
+      setRating(7);
+      setPlatformsPlayed([]);
+      setPlaytimeHours('');
+      setPros(['']);
+      setCons(['']);
+      setSelectedGameId(null);
+      setSuccessMessage('Review published successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Error saving review:', error);
       alert('Failed to save review');
-      return;
     }
 
-    // Reset form
-    setTitle('');
-    setContent('');
-    setRating(7);
-    setPlatformsPlayed([]);
-    setPlaytimeHours('');
-    setPros(['']);
-    setCons(['']);
-    setSelectedGameId(null);
-    setSuccessMessage('Review published successfully!');
-    setTimeout(() => setSuccessMessage(''), 3000);
+    setIsSubmitting(false);
   };
 
   return (
@@ -128,7 +123,7 @@ export default function ReviewForm() {
             </label>
             <select
               value={selectedGameId || ''}
-              onChange={(e) => setSelectedGameId(Number(e.target.value))}
+              onChange={(e) => setSelectedGameId(e.target.value || null)}
               required
               className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             >

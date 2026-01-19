@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { storage, ref, uploadBytes, getDownloadURL, deleteObject } from '@/lib/firebase';
 
 type ImageUploadProps = {
   images: string[];
@@ -113,25 +113,17 @@ export default function ImageUpload({
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `${fileName}`;
 
-        // Upload to Supabase Storage
+        // Upload to Firebase Storage
         setUploadProgress(`Uploading ${i + 1}/${files.length}...`);
-        const { error: uploadError } = await supabase.storage
-          .from('screenshots')
-          .upload(filePath, compressedBlob, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: 'image/jpeg'
-          });
-
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          throw new Error(uploadError.message);
-        }
+        const storageRef = ref(storage, `screenshots/${filePath}`);
+        
+        await uploadBytes(storageRef, compressedBlob, {
+          contentType: 'image/jpeg',
+          cacheControl: 'public, max-age=3600'
+        });
 
         // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('screenshots')
-          .getPublicUrl(filePath);
+        const publicUrl = await getDownloadURL(storageRef);
 
         newImageUrls.push(publicUrl);
       } catch (error) {
@@ -146,15 +138,16 @@ export default function ImageUpload({
   };
 
   const removeImage = async (imageUrl: string, index: number) => {
-    // Extract filename from URL
-    const urlParts = imageUrl.split('/');
-    const fileName = urlParts[urlParts.length - 1];
-
     try {
-      // Delete from Supabase Storage
-      await supabase.storage
-        .from('screenshots')
-        .remove([fileName]);
+      // Extract path from Firebase Storage URL
+      // URL format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?...
+      const urlMatch = imageUrl.match(/\/o\/(.+?)\?/);
+      if (urlMatch) {
+        const encodedPath = urlMatch[1];
+        const filePath = decodeURIComponent(encodedPath);
+        const storageRef = ref(storage, filePath);
+        await deleteObject(storageRef);
+      }
     } catch (error) {
       console.error('Error deleting image:', error);
     }

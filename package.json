@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "export": "next build",
+    "deploy": "npm run export && firebase deploy"
   },
   "dependencies": {
-    "@netlify/plugin-nextjs": "^5.13.5",
-    "@supabase/supabase-js": "^2.75.0",
+    "firebase": "^12.5.0",
+    "firebase-admin": "^13.6.0",
     "next": "15.5.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { searchGames, type RAWGGame } from '@/lib/rawg';
-import { supabase, type Game } from '@/lib/supabase';
+import { firestoreHelpers, type Game } from '@/lib/firebase';
 import ImageUpload from './ImageUpload';
 
 type ContentType = 'note' | 'review' | null;
@@ -69,49 +69,19 @@ export default function CreateContent() {
   }, [searchQuery]);
 
   const loadRecentGames = async () => {
-    // Get games from recent notes and reviews
-    const { data: recentNotes } = await supabase
-      .from('quick_notes')
-      .select('game:games(*)')
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    const { data: recentReviews } = await supabase
-      .from('reviews')
-      .select('game:games(*)')
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    // Combine and deduplicate
-    const allGames = [...(recentNotes || []), ...(recentReviews || [])]
-      .map((item) => (item as unknown as { game: Game | null }).game)
-      .filter((game): game is Game => game !== null);
-
-    // Remove duplicates by game id
-    const uniqueGames = allGames.filter(
-      (game, index, self) => self.findIndex(g => g.id === game.id) === index
-    );
-
-    setRecentGames(uniqueGames.slice(0, 10));
+    // Get recent games from database
+    const allGames = await firestoreHelpers.getGames();
+    setRecentGames(allGames.slice(0, 10));
   };
 
-  const loadExistingContent = async (gameId: number) => {
+  const loadExistingContent = async (gameId: string) => {
     // Load existing notes for this game
-    const { data: notes } = await supabase
-      .from('quick_notes')
-      .select('*')
-      .eq('game_id', gameId)
-      .order('created_at', { ascending: false });
-
+    const notes = await firestoreHelpers.getQuickNotesByGameId(gameId);
     // Load existing reviews for this game
-    const { data: reviews } = await supabase
-      .from('reviews')
-      .select('*')
-      .eq('game_id', gameId)
-      .order('created_at', { ascending: false });
+    const reviews = await firestoreHelpers.getReviewsByGameId(gameId);
 
-    setExistingNotes(notes || []);
-    setExistingReviews(reviews || []);
+    setExistingNotes(notes.map(n => ({ ...n, game: null })) as any);
+    setExistingReviews(reviews.map(r => ({ id: r.id, title: r.title, rating: r.rating, created_at: r.created_at.toString(), game: null })) as any);
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -126,36 +96,28 @@ export default function CreateContent() {
 
   const handleSelectGame = async (rawgGame: RAWGGame) => {
     // First, add game to database if it doesn't exist
-    const { data: existingGame } = await supabase
-      .from('games')
-      .select('*')
-      .eq('rawg_id', rawgGame.id)
-      .single();
+    const existingGame = await firestoreHelpers.getGameByRawgId(rawgGame.id);
 
     let selectedGameData: Game;
     if (existingGame) {
       selectedGameData = existingGame;
       setSelectedGame(existingGame);
     } else {
-      const { data: newGame, error } = await supabase
-        .from('games')
-        .insert({
+      try {
+        const newGame = await firestoreHelpers.addGame({
           rawg_id: rawgGame.id,
           name: rawgGame.name,
           background_image: rawgGame.background_image,
           released: rawgGame.released,
           genres: rawgGame.genres.map(g => g.name),
           platforms: rawgGame.platforms.map(p => p.platform.name),
-        })
-        .select()
-        .single();
-
-      if (error) {
+        });
+        selectedGameData = newGame;
+        setSelectedGame(newGame);
+      } catch (error) {
         alert('Failed to add game');
         return;
       }
-      selectedGameData = newGame;
-      setSelectedGame(newGame);
     }
     
     // Load existing content for this game
@@ -197,28 +159,25 @@ export default function CreateContent() {
     if (!selectedGame || !noteContent.trim()) return;
 
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from('quick_notes')
-      .insert({
+    try {
+      await firestoreHelpers.addQuickNote({
         game_id: selectedGame.id,
         content: noteContent.trim(),
         images: noteImages,
-        cover_image: noteCoverImage,
+        cover_image: noteCoverImage || undefined,
       });
 
-    setIsSubmitting(false);
-
-    if (error) {
+      setSuccessMessage('Quick note posted! 🎉');
+      setTimeout(() => {
+        setSuccessMessage('');
+        resetForm();
+        loadRecentGames(); // Reload recent games
+      }, 2000);
+    } catch (error) {
       alert('Failed to save note');
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSuccessMessage('Quick note posted! 🎉');
-    setTimeout(() => {
-      setSuccessMessage('');
-      resetForm();
-      loadRecentGames(); // Reload recent games
-    }, 2000);
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -226,27 +185,25 @@ export default function CreateContent() {
     if (!selectedGame || !reviewTitle.trim() || !reviewContent.trim()) return;
 
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from('reviews')
-      .insert({
+    try {
+      await firestoreHelpers.addReview({
         game_id: selectedGame.id,
         title: reviewTitle.trim(),
         content: reviewContent.trim(),
         rating,
         platforms_played: platformsPlayed,
-        playtime_hours: playtimeHours ? parseFloat(playtimeHours) : null,
+        playtime_hours: playtimeHours ? parseFloat(playtimeHours) : undefined,
         pros: pros.filter(p => p.trim()),
         cons: cons.filter(c => c.trim()),
         images: reviewImages,
-        cover_image: reviewCoverImage,
+        cover_image: reviewCoverImage || undefined,
       });
-
-    setIsSubmitting(false);
-
-    if (error) {
+    } catch (error) {
       alert('Failed to save review');
+      setIsSubmitting(false);
       return;
     }
+    setIsSubmitting(false);
 
     setSuccessMessage('Review published! 🎉');
     setTimeout(() => {

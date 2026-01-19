@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { firestoreHelpers } from '@/lib/firebase';
 import ImageUpload from './ImageUpload';
 
 type ContentItem = {
-  id: number;
-  game_id: number;
-  created_at: string;
+  id: string;
+  game_id: string;
+  created_at: string | Date;
   game?: {
-    id: number;
+    id: string;
     name: string;
     background_image: string;
   };
@@ -30,7 +30,7 @@ type ContentItem = {
 
 type EditMode = {
   type: 'note' | 'review';
-  id: number;
+  id: string;
   data: ContentItem;
 } | null;
 
@@ -67,13 +67,13 @@ export default function ManageContent() {
     const edit = searchParams.get('edit');
     if (edit && (notes.length > 0 || reviews.length > 0)) {
       if (edit.startsWith('note-')) {
-        const noteId = parseInt(edit.replace('note-', ''));
+        const noteId = edit.replace('note-', '');
         const note = notes.find(n => n.id === noteId);
         if (note) {
           startEdit('note', note);
         }
       } else if (edit.startsWith('review-')) {
-        const reviewId = parseInt(edit.replace('review-', ''));
+        const reviewId = edit.replace('review-', '');
         const review = reviews.find(r => r.id === reviewId);
         if (review) {
           startEdit('review', review);
@@ -85,33 +85,27 @@ export default function ManageContent() {
   const loadContent = async () => {
     setLoading(true);
     
-    const { data: notesData } = await supabase
-      .from('quick_notes')
-      .select('*, game:games(*)')
-      .order('created_at', { ascending: false });
+    const notesData = await firestoreHelpers.getRecentQuickNotes(100);
+    const reviewsData = await firestoreHelpers.getRecentReviews(100);
     
-    const { data: reviewsData } = await supabase
-      .from('reviews')
-      .select('*, game:games(*)')
-      .order('created_at', { ascending: false });
-    
-    setNotes(notesData || []);
-    setReviews(reviewsData || []);
+    setNotes(notesData.map(n => ({ ...n, created_at: n.created_at.toString() })) as any);
+    setReviews(reviewsData.map(r => ({ ...r, created_at: r.created_at.toString() })) as any);
     setLoading(false);
   };
 
-  const handleDelete = async (type: 'note' | 'review', id: number) => {
+  const handleDelete = async (type: 'note' | 'review', id: string) => {
     if (!confirm('Are you sure you want to delete this?')) return;
 
-    const table = type === 'note' ? 'quick_notes' : 'reviews';
-    const { error } = await supabase.from(table).delete().eq('id', id);
-
-    if (error) {
+    try {
+      if (type === 'note') {
+        await firestoreHelpers.deleteQuickNote(id);
+      } else {
+        await firestoreHelpers.deleteReview(id);
+      }
+      loadContent();
+    } catch (error) {
       alert('Failed to delete');
-      return;
     }
-
-    loadContent();
   };
 
   const startEdit = (type: 'note' | 'review', item: ContentItem) => {
@@ -150,47 +144,33 @@ export default function ManageContent() {
   const saveEdit = async () => {
     if (!editMode) return;
 
-    if (editMode.type === 'note') {
-      const { error } = await supabase
-        .from('quick_notes')
-        .update({ 
+    try {
+      if (editMode.type === 'note') {
+        await firestoreHelpers.updateQuickNote(editMode.id, { 
           content: editContent,
           images: editImages,
-          cover_image: editCoverImage,
-        })
-        .eq('id', editMode.id);
-
-      if (error) {
-        console.error('Failed to update note:', error);
-        alert(`Failed to update note: ${error.message}`);
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from('reviews')
-        .update({
+          cover_image: editCoverImage || undefined,
+        });
+      } else {
+        await firestoreHelpers.updateReview(editMode.id, {
           title: editTitle,
           content: editReviewContent,
           rating: editRating,
           platforms_played: editPlatforms,
-          playtime_hours: editPlaytime ? parseFloat(editPlaytime) : null,
+          playtime_hours: editPlaytime ? parseFloat(editPlaytime) : undefined,
           pros: editPros.filter(p => p.trim()),
           cons: editCons.filter(c => c.trim()),
           images: editImages,
-          cover_image: editCoverImage,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editMode.id);
-
-      if (error) {
-        console.error('Failed to update review:', error);
-        alert(`Failed to update review: ${error.message}`);
-        return;
+          cover_image: editCoverImage || undefined,
+        });
       }
-    }
 
-    cancelEdit();
-    loadContent();
+      cancelEdit();
+      loadContent();
+    } catch (error) {
+      console.error('Failed to update:', error);
+      alert(`Failed to update: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   if (loading) {

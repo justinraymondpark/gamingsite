@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow public read access to all collections
+    match /{document=**} {
+      allow read: if true;
+    }
+    
+    // Games collection - public read, authenticated write
+    match /games/{gameId} {
+      allow read: if true;
+      allow write: if true; // You can add authentication later
+    }
+    
+    // Quick notes collection - public read, authenticated write
+    match /quick_notes/{noteId} {
+      allow read: if true;
+      allow write: if true; // You can add authentication later
+    }
+    
+    // Reviews collection - public read, authenticated write
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if true; // You can add authentication later
+    }
+  }
+}
