@@ -1,127 +1,65 @@
-# GameLog - Your Personal Gaming Journal
+# GameLog - Personal Gaming Journal
 
-A beautiful, custom-built gaming website where you can share your thoughts on games you're playing. Features both quick notes and longform reviews with automatic game metadata from RAWG API.
+A personal gaming journal for writing quick notes and longform reviews about games. Game metadata pulled from RAWG API, data stored in Firestore, hosted as a static site on Firebase.
 
-## ✨ Features
+## Features
 
-- 🎮 **Game Database Integration**: Search and add games with automatic box art, platforms, and metadata
-- 📝 **Dual Content Types**:
-  - Quick Notes: Twitter-style short thoughts (up to 280 characters)
-  - Full Reviews: Longform with ratings, pros/cons, playtime, and Markdown support
-- 🎨 **Unique Design**: Deep indigo base with electric lime accents for a distinctive gaming aesthetic
-- 🔐 **Custom Admin CMS**: Web-based content management accessible at `/admin`
-- 📱 **Responsive**: Beautiful on all screen sizes
+- **Game search** via RAWG API with automatic box art, platforms, and metadata
+- **Quick notes** for short thoughts on games
+- **Full reviews** with ratings, pros/cons, playtime tracking, and Markdown
+- **Game pages** that aggregate all notes and reviews per game
+- **Admin CMS** at `/admin` with Google OAuth authentication
+- **Static export** — fully client-side, no server required
 
-## 🚀 Setup Instructions
+## Setup
 
-### 1. Get Your API Keys
+### Prerequisites
 
-#### RAWG API (for game data)
-1. Go to https://rawg.io/apidocs
-2. Create a free account
-3. Get your API key from the dashboard
+- A Firebase project with Firestore, Authentication (Google provider), and Storage enabled
+- A [RAWG API key](https://rawg.io/apidocs)
 
-#### Supabase (for database)
-1. Go to https://supabase.com
-2. Create a new project
-3. Go to Project Settings → API
-4. Copy your project URL and `anon` public key
-5. Go to SQL Editor and run the schema from `supabase-schema.sql`
+### Environment Variables
 
-### 2. Configure Environment Variables
+Create `.env.local`:
 
-Edit the `.env.local` file and fill in your keys:
+```env
+NEXT_PUBLIC_RAWG_API_KEY=your_rawg_api_key
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+NEXT_PUBLIC_ADMIN_EMAIL=your_google_email@gmail.com
+```
 
-\`\`\`env
-NEXT_PUBLIC_RAWG_API_KEY=your_rawg_api_key_here
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-ADMIN_PASSWORD=choose_a_secure_password
-\`\`\`
+### Install and Run
 
-### 3. Install Dependencies
-
-\`\`\`bash
+```bash
 npm install
-\`\`\`
-
-### 4. Run Locally
-
-\`\`\`bash
 npm run dev
-\`\`\`
+```
 
-Visit http://localhost:3000 to see your site!
-Visit http://localhost:3000/admin to access the CMS.
+## Deploy
 
-## 📦 Deploy to Netlify
+The site builds as a static export (`output: 'export'`) into `out/`, served by Firebase Hosting with an SPA rewrite.
 
-### Option 1: Deploy via GitHub (Recommended)
+```bash
+npm run build
+firebase deploy
+```
 
-1. Push this code to a GitHub repository
-2. Go to https://netlify.com and sign in
-3. Click "Add new site" → "Import an existing project"
-4. Connect your GitHub repo
-5. Add your environment variables in Netlify:
-   - Go to Site settings → Environment variables
-   - Add all variables from `.env.local`
-6. Deploy!
+Or use the shorthand:
 
-### Option 2: Deploy via Netlify CLI
+```bash
+npm run deploy
+```
 
-\`\`\`bash
-npm install -g netlify-cli
-netlify login
-netlify init
-netlify env:set NEXT_PUBLIC_RAWG_API_KEY your_key_here
-netlify env:set NEXT_PUBLIC_SUPABASE_URL your_url_here
-netlify env:set NEXT_PUBLIC_SUPABASE_ANON_KEY your_key_here
-netlify env:set ADMIN_PASSWORD your_password_here
-netlify deploy --prod
-\`\`\`
+## Tech Stack
 
-## 🎯 Using the Admin Panel
-
-1. Go to `/admin` on your deployed site
-2. Enter your admin password
-3. **Add Games**: Search RAWG database and add games to your collection
-4. **Quick Notes**: Write short thoughts about games (280 chars max)
-5. **Write Review**: Create detailed reviews with ratings, pros/cons, and Markdown formatting
-
-## 🎨 Customization
-
-### Colors
-Edit `app/globals.css` to change the color scheme:
-- `--background`: Main background color
-- `--surface`: Card/panel backgrounds
-- `--accent`: Primary accent color (currently lime green)
-
-### Platforms
-Edit the `PLATFORMS` array in `components/admin/ReviewForm.tsx` to add/remove gaming platforms.
-
-## 📝 Markdown Support in Reviews
-
-Reviews support Markdown formatting:
-- `## Heading` for section titles
-- `**bold**` for emphasis
-- `*italic*` for subtle emphasis
-- `- item` for bullet lists
-- `1. item` for numbered lists
-
-## 🛠 Tech Stack
-
-- **Next.js 15** - React framework with App Router
-- **TypeScript** - Type safety
-- **Tailwind CSS 4** - Styling
-- **Supabase** - PostgreSQL database
-- **RAWG API** - Game metadata
-- **Netlify** - Hosting
-- **React Markdown** - Review formatting
-
-## 📄 License
-
-MIT - Use this however you want!
-
----
-
-Built with ❤️ for gamers who love to share their thoughts.
+- **Next.js 16** (static export) — React framework with App Router
+- **TypeScript**
+- **Tailwind CSS 4**
+- **Firebase** — Firestore, Auth, Storage, Hosting
+- **RAWG API** — game metadata
+- **React Markdown** — review formatting
