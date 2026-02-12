@@ -2,6 +2,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, doc, query, where, orderBy, limit, getDocs, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, DocumentData } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { getAuth, signInWithPopup, signOut, onAuthStateChanged, GoogleAuthProvider, type User } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -16,8 +17,48 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 const storage = getStorage(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 
-export { db, storage, collection, doc, query, where, orderBy, limit, getDocs, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, ref, uploadBytes, getDownloadURL, deleteObject };
+// Allowed admin emails
+const ADMIN_EMAILS = ['toupee@gmail.com'];
+
+export { db, storage, auth, collection, doc, query, where, orderBy, limit, getDocs, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, ref, uploadBytes, getDownloadURL, deleteObject };
+
+// Auth helper functions
+export const authHelpers = {
+  // Sign in with Google
+  async signInWithGoogle(): Promise<User | null> {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      return null;
+    }
+  },
+
+  // Sign out
+  async signOut(): Promise<void> {
+    await signOut(auth);
+  },
+
+  // Check if user is an admin
+  isAdmin(user: User | null): boolean {
+    if (!user?.email) return false;
+    return ADMIN_EMAILS.includes(user.email);
+  },
+
+  // Subscribe to auth state changes
+  onAuthStateChanged(callback: (user: User | null) => void): () => void {
+    return onAuthStateChanged(auth, callback);
+  },
+
+  // Get current user
+  getCurrentUser(): User | null {
+    return auth.currentUser;
+  },
+};
 
 // Type definitions matching the Supabase schema
 export type Game = {
@@ -36,7 +77,7 @@ export type QuickNote = {
   game_id: string;
   content: string;
   images: string[];
-  cover_image?: string;
+  cover_image: string | null;
   created_at: Date;
   game?: Game;
 };
@@ -48,11 +89,11 @@ export type Review = {
   content: string;
   rating: number;
   platforms_played: string[];
-  playtime_hours?: number;
-  pros?: string[];
-  cons?: string[];
+  playtime_hours: number | null;
+  pros: string[];
+  cons: string[];
   images: string[];
-  cover_image?: string;
+  cover_image: string | null;
   created_at: Date;
   updated_at: Date;
   game?: Game;

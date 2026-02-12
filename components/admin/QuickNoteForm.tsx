@@ -30,6 +30,7 @@ export default function QuickNoteForm() {
         game_id: selectedGameId,
         content: content.trim(),
         images: [],
+        cover_image: null,
       });
 
       setContent('');

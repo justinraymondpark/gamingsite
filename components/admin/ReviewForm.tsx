@@ -74,10 +74,11 @@ export default function ReviewForm() {
         content: content.trim(),
         rating,
         platforms_played: platformsPlayed,
-        playtime_hours: playtimeHours ? parseFloat(playtimeHours) : undefined,
+        playtime_hours: playtimeHours ? parseFloat(playtimeHours) : null,
         pros: pros.filter(p => p.trim()),
         cons: cons.filter(c => c.trim()),
         images: [],
+        cover_image: null,
       });
 
       // Reset form

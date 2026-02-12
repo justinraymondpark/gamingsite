@@ -156,16 +156,22 @@ export default function CreateContent() {
 
   const handleSubmitNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedGame || !noteContent.trim()) return;
+    console.log('handleSubmitNote called', { selectedGame, noteContent: noteContent.trim() });
+    if (!selectedGame || !noteContent.trim()) {
+      console.log('Validation failed - selectedGame:', selectedGame, 'noteContent:', noteContent);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
+      console.log('Submitting note to Firebase...', { game_id: selectedGame.id, content: noteContent.trim() });
       await firestoreHelpers.addQuickNote({
         game_id: selectedGame.id,
         content: noteContent.trim(),
         images: noteImages,
-        cover_image: noteCoverImage || undefined,
+        cover_image: noteCoverImage ?? null,
       });
+      console.log('Note submitted successfully!');
 
       setSuccessMessage('Quick note posted! 🎉');
       setTimeout(() => {
@@ -174,7 +180,8 @@ export default function CreateContent() {
         loadRecentGames(); // Reload recent games
       }, 2000);
     } catch (error) {
-      alert('Failed to save note');
+      console.error('Failed to save note:', error);
+      alert('Failed to save note: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -192,11 +199,11 @@ export default function CreateContent() {
         content: reviewContent.trim(),
         rating,
         platforms_played: platformsPlayed,
-        playtime_hours: playtimeHours ? parseFloat(playtimeHours) : undefined,
+        playtime_hours: playtimeHours ? parseFloat(playtimeHours) : null,
         pros: pros.filter(p => p.trim()),
         cons: cons.filter(c => c.trim()),
         images: reviewImages,
-        cover_image: reviewCoverImage || undefined,
+        cover_image: reviewCoverImage ?? null,
       });
     } catch (error) {
       alert('Failed to save review');

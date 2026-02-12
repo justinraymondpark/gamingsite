@@ -76,56 +76,6 @@ export default function Home() {
           </div>
         ) : (
           <div className="space-y-8">
-            {/* Reviews Section */}
-            {reviews.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-bold text-[var(--foreground)] mb-6">
-                  Recent Reviews
-                </h2>
-                <div className="grid gap-6 md:grid-cols-2">
-                  {reviews.map((review) => (
-                    <Link
-                      key={review.id}
-                      href={`/review/${review.id}`}
-                      className="block group"
-                    >
-                      <div className="bg-[var(--surface)] rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--accent)] transition-all hover:transform hover:scale-[1.02]">
-                        {(review.cover_image || review.game?.background_image) && (
-                          <div className="aspect-video relative overflow-hidden">
-                            <img
-                              src={review.cover_image || review.game?.background_image || ''}
-                              alt={review.game?.name || 'Game'}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                            />
-                          </div>
-                        )}
-                        <div className="p-5">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="px-2 py-1 bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold rounded">
-                              {review.rating}/10
-                            </span>
-                            <span className="text-xs text-[var(--foreground-muted)]">
-                              {new Date(review.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <h3 className="text-xl font-bold text-[var(--foreground)] mb-1 group-hover:text-[var(--accent)] transition-colors">
-                            {review.title}
-                          </h3>
-                          {review.game && (
-                            <p className="text-sm">
-                              <span className="text-[var(--accent)] font-semibold">
-                                {review.game.name}
-                              </span>
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {/* Quick Notes Section */}
             {notes.length > 0 && (
               <section>
@@ -173,6 +123,56 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Reviews Section */}
+            {reviews.length > 0 && (
+              <section>
+                <h2 className="text-2xl font-bold text-[var(--foreground)] mb-6">
+                  Recent Reviews
+                </h2>
+                <div className="grid gap-6 md:grid-cols-2">
+                  {reviews.map((review) => (
+                    <Link
+                      key={review.id}
+                      href={`/review/${review.id}`}
+                      className="block group"
+                    >
+                      <div className="bg-[var(--surface)] rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--accent)] transition-all hover:transform hover:scale-[1.02]">
+                        {(review.cover_image || review.game?.background_image) && (
+                          <div className="aspect-video relative overflow-hidden">
+                            <img
+                              src={review.cover_image || review.game?.background_image || ''}
+                              alt={review.game?.name || 'Game'}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            />
+                          </div>
+                        )}
+                        <div className="p-5">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="px-2 py-1 bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold rounded">
+                              {review.rating}/10
+                            </span>
+                            <span className="text-xs text-[var(--foreground-muted)]">
+                              {new Date(review.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <h3 className="text-xl font-bold text-[var(--foreground)] mb-1 group-hover:text-[var(--accent)] transition-colors">
+                            {review.title}
+                          </h3>
+                          {review.game && (
+                            <p className="text-sm">
+                              <span className="text-[var(--accent)] font-semibold">
+                                {review.game.name}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </section>
