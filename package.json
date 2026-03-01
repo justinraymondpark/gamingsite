@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "export": "next build",
+    "export": "next build --webpack",
     "deploy": "npm run export && firebase deploy"
   },
   "dependencies": {
