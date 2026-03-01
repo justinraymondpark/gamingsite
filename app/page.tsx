@@ -3,21 +3,29 @@
 import { firestoreHelpers, QuickNote, Review } from '@/lib/firebase';
 import Link from 'next/link';
 import QuickNoteImages from '@/components/QuickNoteImages';
+import InlineQuickNoteForm from '@/components/InlineQuickNoteForm';
+import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 
+const PAGE_SIZE = 5;
+
 export default function Home() {
+  const { isAdmin } = useAuth();
   const [notes, setNotes] = useState<QuickNote[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMoreNotes, setHasMoreNotes] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     async function fetchContent() {
       try {
         const [fetchedNotes, fetchedReviews] = await Promise.all([
-          firestoreHelpers.getRecentQuickNotes(5),
+          firestoreHelpers.getRecentQuickNotesPaginated(PAGE_SIZE),
           firestoreHelpers.getRecentReviews(5)
         ]);
         setNotes(fetchedNotes);
+        setHasMoreNotes(fetchedNotes.length === PAGE_SIZE);
         setReviews(fetchedReviews);
       } catch (error) {
         console.error('Error fetching content:', error);
@@ -27,6 +35,28 @@ export default function Home() {
     }
     fetchContent();
   }, []);
+
+  const loadMoreNotes = async () => {
+    if (loadingMore || notes.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const lastNote = notes[notes.length - 1];
+      const moreNotes = await firestoreHelpers.getRecentQuickNotesPaginated(
+        PAGE_SIZE,
+        lastNote.created_at
+      );
+      setNotes(prev => [...prev, ...moreNotes]);
+      setHasMoreNotes(moreNotes.length === PAGE_SIZE);
+    } catch (error) {
+      console.error('Error loading more notes:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleNoteCreated = (note: QuickNote) => {
+    setNotes(prev => [note, ...prev]);
+  };
 
   if (loading) {
     return (
@@ -45,7 +75,7 @@ export default function Home() {
             <h1 className="text-3xl font-bold text-[var(--foreground)]">
               Game<span className="text-[var(--accent)]">Log</span>
             </h1>
-            <Link 
+            <Link
               href="/admin"
               className="text-sm text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors"
             >
@@ -57,7 +87,7 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-12">
-        {notes.length === 0 && reviews.length === 0 ? (
+        {notes.length === 0 && reviews.length === 0 && !isAdmin ? (
           <div className="text-center py-20">
             <div className="inline-block p-8 bg-[var(--surface)] rounded-lg border border-[var(--border)]">
               <h2 className="text-2xl font-bold text-[var(--foreground)] mb-2">
@@ -77,11 +107,16 @@ export default function Home() {
         ) : (
           <div className="space-y-8">
             {/* Quick Notes Section */}
-            {notes.length > 0 && (
+            {(notes.length > 0 || isAdmin) && (
               <section>
                 <h2 className="text-2xl font-bold text-[var(--foreground)] mb-6">
                   Quick Notes
                 </h2>
+
+                {isAdmin && (
+                  <InlineQuickNoteForm onNoteCreated={handleNoteCreated} />
+                )}
+
                 <div className="space-y-4">
                   {notes.map((note) => (
                     <div
@@ -100,12 +135,12 @@ export default function Home() {
                           <p className="text-[var(--foreground)] mb-2">
                             {note.content}
                           </p>
-                          
+
                           {/* User-uploaded screenshots */}
                           {note.images && note.images.length > 0 && (
                             <QuickNoteImages images={note.images} />
                           )}
-                          
+
                           <div className="flex items-center gap-2 text-sm">
                             {note.game && (
                               <Link
@@ -125,6 +160,18 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+
+                {hasMoreNotes && (
+                  <div className="mt-6 text-center">
+                    <button
+                      onClick={loadMoreNotes}
+                      disabled={loadingMore}
+                      className="px-6 py-3 bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] rounded-lg font-semibold hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+                    >
+                      {loadingMore ? 'Loading...' : 'Load More Notes'}
+                    </button>
+                  </div>
+                )}
               </section>
             )}
 

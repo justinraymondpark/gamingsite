@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { searchGames, type RAWGGame } from '@/lib/rawg';
 import { firestoreHelpers, type Game } from '@/lib/firebase';
 import ImageUpload from './ImageUpload';
+import ManualGameForm from './ManualGameForm';
 
 type ContentType = 'note' | 'review' | null;
 
@@ -43,6 +44,7 @@ export default function CreateContent() {
   const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [reviewCoverImage, setReviewCoverImage] = useState<string | null>(null);
   
+  const [showManualAdd, setShowManualAdd] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -152,6 +154,7 @@ export default function CreateContent() {
     setCons(['']);
     setReviewImages([]);
     setReviewCoverImage(null);
+    setShowManualAdd(false);
   };
 
   const handleSubmitNote = async (e: React.FormEvent) => {
@@ -356,6 +359,34 @@ export default function CreateContent() {
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Manual Game Add */}
+          {!showManualAdd ? (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setShowManualAdd(true)}
+                className="text-sm text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors"
+              >
+                Can't find your game? <span className="underline">Add it manually</span>
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <ManualGameForm
+                onGameAdded={(game) => {
+                  setSelectedGame(game);
+                  setShowManualAdd(false);
+                  setSearchResults([]);
+                  setLiveResults([]);
+                  setShowDropdown(false);
+                  setSearchQuery('');
+                  loadExistingContent(game.id);
+                }}
+                onCancel={() => setShowManualAdd(false)}
+              />
             </div>
           )}
         </div>

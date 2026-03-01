@@ -1,6 +1,6 @@
 // Firebase client configuration for browser-side operations
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, doc, query, where, orderBy, limit, getDocs, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, DocumentData } from 'firebase/firestore';
+import { getFirestore, collection, doc, query, where, orderBy, limit, getDocs, getDoc, addDoc, updateDoc, deleteDoc, startAfter, Timestamp, DocumentData } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { getAuth, signInWithPopup, signOut, onAuthStateChanged, GoogleAuthProvider, type User } from 'firebase/auth';
 
@@ -180,6 +180,29 @@ export const firestoreHelpers = {
       })
     );
     
+    return notes;
+  },
+
+  // Get recent quick notes with cursor-based pagination
+  async getRecentQuickNotesPaginated(limitCount: number = 5, lastCreatedAt?: Date): Promise<QuickNote[]> {
+    const notesRef = collection(db, 'quick_notes');
+    const q = lastCreatedAt
+      ? query(notesRef, orderBy('created_at', 'desc'), startAfter(Timestamp.fromDate(lastCreatedAt)), limit(limitCount))
+      : query(notesRef, orderBy('created_at', 'desc'), limit(limitCount));
+    const snapshot = await getDocs(q);
+
+    const notes = await Promise.all(
+      snapshot.docs.map(async (noteDoc) => {
+        const noteData = convertTimestamp(noteDoc.data());
+        const game = noteData.game_id ? await this.getGameById(noteData.game_id) : null;
+        return {
+          id: noteDoc.id,
+          ...noteData,
+          game
+        } as QuickNote;
+      })
+    );
+
     return notes;
   },
 
