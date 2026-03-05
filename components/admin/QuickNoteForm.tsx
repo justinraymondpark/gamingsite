@@ -45,9 +45,6 @@ export default function QuickNoteForm() {
     setIsSubmitting(false);
   };
 
-  const characterCount = content.length;
-  const maxChars = 280;
-
   return (
     <div className="max-w-2xl">
       <div className="bg-[var(--surface)] rounded-lg p-6 border border-[var(--border)]">
@@ -55,7 +52,7 @@ export default function QuickNoteForm() {
           Quick Gaming Note
         </h2>
         <p className="text-[var(--foreground-muted)] mb-6">
-          Share a quick thought about a game you&apos;re playing (max 280 characters).
+          Share a quick thought about a game you&apos;re playing.
         </p>
 
         {successMessage && (
@@ -95,17 +92,12 @@ export default function QuickNoteForm() {
             </label>
             <textarea
               value={content}
-              onChange={(e) => setContent(e.target.value.slice(0, maxChars))}
+              onChange={(e) => setContent(e.target.value)}
               placeholder="Just beat the first boss and..."
               required
               rows={4}
               className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] resize-none"
             />
-            <div className="mt-2 text-right">
-              <span className={`text-sm ${characterCount > maxChars * 0.9 ? 'text-[var(--accent)]' : 'text-[var(--foreground-muted)]'}`}>
-                {characterCount}/{maxChars}
-              </span>
-            </div>
           </div>
 
           <button

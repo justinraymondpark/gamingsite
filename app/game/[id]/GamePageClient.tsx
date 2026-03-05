@@ -156,10 +156,10 @@ export default function GamePage() {
                   <div className="flex gap-4">
                     {note.images?.length > 0 && <QuickNoteImages images={note.images} />}
                     <div className="flex-1 min-w-0">
-                      <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">{note.content}</p>
-                      <p className="text-sm text-[var(--foreground-muted)] mt-2">
+                      <p className="text-sm text-[var(--foreground-muted)] mb-2">
                         {new Date(note.created_at).toLocaleDateString()} at {new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
+                      <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">{note.content}</p>
                     </div>
                   </div>
                 </div>

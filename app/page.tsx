@@ -132,16 +132,7 @@ export default function Home() {
                           />
                         )}
                         <div className="flex-1">
-                          <p className="text-[var(--foreground)] mb-2">
-                            {note.content}
-                          </p>
-
-                          {/* User-uploaded screenshots */}
-                          {note.images && note.images.length > 0 && (
-                            <QuickNoteImages images={note.images} />
-                          )}
-
-                          <div className="flex items-center gap-2 text-sm">
+                          <div className="flex items-center gap-2 text-sm mb-2">
                             {note.game && (
                               <Link
                                 href={`/game/${note.game.id}`}
@@ -155,6 +146,15 @@ export default function Home() {
                               {new Date(note.created_at).toLocaleDateString()}
                             </span>
                           </div>
+
+                          <p className="text-[var(--foreground)]">
+                            {note.content}
+                          </p>
+
+                          {/* User-uploaded screenshots */}
+                          {note.images && note.images.length > 0 && (
+                            <QuickNoteImages images={note.images} />
+                          )}
                         </div>
                       </div>
                     </div>

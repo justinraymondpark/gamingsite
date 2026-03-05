@@ -159,16 +159,13 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       {/* Note content */}
       <textarea
         value={content}
-        onChange={(e) => setContent(e.target.value.slice(0, 280))}
+        onChange={(e) => setContent(e.target.value)}
         placeholder={selectedGame ? "Quick thought..." : "Select a game first..."}
         disabled={!selectedGame}
         rows={2}
         className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] resize-none disabled:opacity-50"
       />
       <div className="flex items-center justify-between">
-        <span className={`text-xs ${content.length > 252 ? 'text-[var(--accent)]' : 'text-[var(--foreground-muted)]'}`}>
-          {content.length}/280
-        </span>
         <button
           type="submit"
           disabled={isSubmitting || !selectedGame || !content.trim()}
