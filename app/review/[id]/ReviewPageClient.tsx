@@ -2,20 +2,19 @@
 
 import { firestoreHelpers, Review } from '@/lib/firebase';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import ImageGallery from '@/components/ImageGallery';
 import { useEffect, useState } from 'react';
 
 export default function ReviewPage() {
-  const params = useParams();
-  const reviewId = params.id as string;
-  
   const [review, setReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
+    const reviewId = window.location.pathname.split('/')[2];
+    if (!reviewId) return;
+
     async function fetchReview() {
       try {
         const fetchedReview = await firestoreHelpers.getReviewById(reviewId);
@@ -31,9 +30,9 @@ export default function ReviewPage() {
         setLoading(false);
       }
     }
-    
-    if (reviewId) fetchReview();
-  }, [reviewId]);
+
+    fetchReview();
+  }, []);
 
   if (loading) {
     return (

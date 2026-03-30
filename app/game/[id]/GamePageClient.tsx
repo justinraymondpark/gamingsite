@@ -2,14 +2,10 @@
 
 import { firestoreHelpers, Game, QuickNote, Review } from '@/lib/firebase';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import QuickNoteImages from '@/components/QuickNoteImages';
 import { useEffect, useState } from 'react';
 
 export default function GamePage() {
-  const params = useParams();
-  const gameId = params.id as string;
-  
   const [game, setGame] = useState<Game | null>(null);
   const [notes, setNotes] = useState<QuickNote[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -17,22 +13,25 @@ export default function GamePage() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
+    const gameId = window.location.pathname.split('/')[2];
+    if (!gameId) return;
+
     async function fetchGameContent() {
       try {
         const fetchedGame = await firestoreHelpers.getGameById(gameId);
-        
+
         if (!fetchedGame) {
           setNotFound(true);
           return;
         }
-        
+
         setGame(fetchedGame);
-        
+
         const [fetchedNotes, fetchedReviews] = await Promise.all([
           firestoreHelpers.getQuickNotesByGameId(gameId),
           firestoreHelpers.getReviewsByGameId(gameId)
         ]);
-        
+
         setNotes(fetchedNotes);
         setReviews(fetchedReviews);
       } catch (error) {
@@ -42,11 +41,9 @@ export default function GamePage() {
         setLoading(false);
       }
     }
-    
-    if (gameId) {
-      fetchGameContent();
-    }
-  }, [gameId]);
+
+    fetchGameContent();
+  }, []);
 
   if (loading) {
     return (
@@ -122,55 +119,48 @@ export default function GamePage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-12">
-        {reviews.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-[var(--foreground)] mb-6">Reviews</h2>
-            <div className="space-y-6">
-              {reviews.map((review) => (
-                <Link key={review.id} href={`/review/${review.id}`} className="block group">
-                  <div className="bg-[var(--surface)] rounded-lg p-6 border border-[var(--border)] hover:border-[var(--accent)] transition-all hover:transform hover:scale-[1.01]">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <h3 className="text-xl font-bold text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{review.title}</h3>
-                      <span className="px-3 py-1 bg-[var(--accent)] text-[var(--accent-text)] rounded-full text-sm font-bold">{review.rating}/10</span>
-                    </div>
-                    <div className="flex flex-wrap gap-4 text-sm text-[var(--foreground-muted)] mb-3">
-                      {review.platforms_played?.length > 0 && <span>🎮 {review.platforms_played.join(', ')}</span>}
-                      {review.playtime_hours && <span>⏱️ {review.playtime_hours}h played</span>}
-                      <span>📅 {new Date(review.created_at).toLocaleDateString()}</span>
-                    </div>
-                    {review.content && <p className="text-[var(--foreground-muted)] line-clamp-2">{review.content.substring(0, 200)}...</p>}
-                    <div className="mt-4 text-[var(--accent)] text-sm font-semibold">Read full review →</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {notes.length > 0 && (
-          <section>
-            <h2 className="text-3xl font-bold text-[var(--foreground)] mb-6">Quick Notes</h2>
-            <div className="space-y-4">
-              {notes.map((note) => (
-                <div key={note.id} className="bg-[var(--surface)] rounded-lg p-5 border border-[var(--border)]">
-                  <div className="flex gap-4">
-                    {note.images?.length > 0 && <QuickNoteImages images={note.images} />}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-[var(--foreground-muted)] mb-2">
-                        {new Date(note.created_at).toLocaleDateString()} at {new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                      <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">{note.content}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {reviews.length === 0 && notes.length === 0 && (
+        {notes.length === 0 && reviews.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-[var(--foreground-muted)] text-lg">No content yet for this game.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {[
+              ...notes.map(n => ({ type: 'note' as const, data: n, date: new Date(n.created_at) })),
+              ...reviews.map(r => ({ type: 'review' as const, data: r, date: new Date(r.created_at) })),
+            ]
+              .sort((a, b) => b.date.getTime() - a.date.getTime())
+              .map((item) =>
+                item.type === 'note' ? (
+                  <div key={`note-${item.data.id}`} className="bg-[var(--surface)] rounded-lg p-5 border border-[var(--border)]">
+                    <p className="text-sm text-[var(--foreground-muted)] mb-2">
+                      {item.date.toLocaleDateString()} at {item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">{item.data.content}</p>
+                    {item.data.images?.length > 0 && (
+                      <div className="mt-3">
+                        <QuickNoteImages images={item.data.images} />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Link key={`review-${item.data.id}`} href={`/review/${item.data.id}`} className="block group">
+                    <div className="bg-[var(--surface)] rounded-lg p-6 border border-[var(--border)] hover:border-[var(--accent)] transition-all hover:transform hover:scale-[1.01]">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <h3 className="text-xl font-bold text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{item.data.title}</h3>
+                        <span className="px-3 py-1 bg-[var(--accent)] text-[var(--accent-text)] rounded-full text-sm font-bold flex-shrink-0">{item.data.rating}/10</span>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm text-[var(--foreground-muted)] mb-3">
+                        {item.data.platforms_played?.length > 0 && <span>🎮 {item.data.platforms_played.join(', ')}</span>}
+                        {item.data.playtime_hours && <span>⏱️ {item.data.playtime_hours}h played</span>}
+                        <span>📅 {item.date.toLocaleDateString()}</span>
+                      </div>
+                      {item.data.content && <p className="text-[var(--foreground-muted)] line-clamp-2">{item.data.content.substring(0, 200)}...</p>}
+                      <div className="mt-4 text-[var(--accent)] text-sm font-semibold">Read full review →</div>
+                    </div>
+                  </Link>
+                )
+              )}
           </div>
         )}
       </div>

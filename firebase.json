@@ -8,6 +8,14 @@
     ],
     "rewrites": [
       {
+        "source": "/game/**",
+        "destination": "/game/placeholder.html"
+      },
+      {
+        "source": "/review/**",
+        "destination": "/review/placeholder.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

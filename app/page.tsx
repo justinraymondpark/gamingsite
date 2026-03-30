@@ -147,7 +147,7 @@ export default function Home() {
                             </span>
                           </div>
 
-                          <p className="text-[var(--foreground)]">
+                          <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">
                             {note.content}
                           </p>
 
