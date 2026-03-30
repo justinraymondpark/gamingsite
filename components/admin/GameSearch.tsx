@@ -37,6 +37,7 @@ export default function GameSearch() {
       }
 
       await firestoreHelpers.addGame({
+        media_type: 'game',
         rawg_id: game.id,
         name: game.name,
         background_image: game.background_image || '',

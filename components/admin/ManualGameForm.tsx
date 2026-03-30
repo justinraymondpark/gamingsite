@@ -127,6 +127,7 @@ export default function ManualGameForm({ onGameAdded, onCancel }: Props) {
     setIsSubmitting(true);
     try {
       const game = await firestoreHelpers.addGame({
+        media_type: 'game',
         rawg_id: 0,
         name: name.trim(),
         background_image: imageUrl.trim(),

@@ -28,6 +28,7 @@ export default function QuickNoteForm() {
     try {
       await firestoreHelpers.addQuickNote({
         game_id: selectedGameId,
+        media_type: 'game',
         content: content.trim(),
         images: [],
         cover_image: null,

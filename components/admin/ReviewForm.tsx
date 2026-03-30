@@ -70,6 +70,7 @@ export default function ReviewForm() {
     try {
       await firestoreHelpers.addReview({
         game_id: selectedGameId,
+        media_type: 'game',
         title: title.trim(),
         content: content.trim(),
         rating,

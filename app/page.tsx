@@ -1,6 +1,6 @@
 'use client';
 
-import { firestoreHelpers, QuickNote, Review } from '@/lib/firebase';
+import { firestoreHelpers, QuickNote, Review, type MediaType } from '@/lib/firebase';
 import Link from 'next/link';
 import QuickNoteImages from '@/components/QuickNoteImages';
 import InlineQuickNoteForm from '@/components/InlineQuickNoteForm';
@@ -9,8 +9,27 @@ import { useEffect, useState } from 'react';
 
 const PAGE_SIZE = 5;
 
+const TABS: { key: MediaType | 'all'; label: string; icon: string }[] = [
+  { key: 'all', label: 'All', icon: '📋' },
+  { key: 'game', label: 'Games', icon: '🎮' },
+  { key: 'music', label: 'Music', icon: '🎵' },
+  { key: 'movie', label: 'Movies', icon: '🎬' },
+  { key: 'tv', label: 'TV', icon: '📺' },
+];
+
+function getMediaIcon(mediaType?: MediaType): string {
+  switch (mediaType) {
+    case 'game': return '🎮';
+    case 'music': return '🎵';
+    case 'movie': return '🎬';
+    case 'tv': return '📺';
+    default: return '🎮';
+  }
+}
+
 export default function Home() {
   const { isAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState<MediaType | 'all'>('all');
   const [notes, setNotes] = useState<QuickNote[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,32 +37,39 @@ export default function Home() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    async function fetchContent() {
-      try {
-        const [fetchedNotes, fetchedReviews] = await Promise.all([
-          firestoreHelpers.getRecentQuickNotesPaginated(PAGE_SIZE),
-          firestoreHelpers.getRecentReviews(5)
-        ]);
-        setNotes(fetchedNotes);
-        setHasMoreNotes(fetchedNotes.length === PAGE_SIZE);
-        setReviews(fetchedReviews);
-      } catch (error) {
-        console.error('Error fetching content:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
+    setLoading(true);
+    setNotes([]);
+    setReviews([]);
     fetchContent();
-  }, []);
+  }, [activeTab]);
+
+  async function fetchContent() {
+    try {
+      const mediaFilter = activeTab === 'all' ? undefined : activeTab;
+      const [fetchedNotes, fetchedReviews] = await Promise.all([
+        firestoreHelpers.getRecentQuickNotesPaginated(PAGE_SIZE, undefined, mediaFilter),
+        firestoreHelpers.getRecentReviews(5, mediaFilter)
+      ]);
+      setNotes(fetchedNotes);
+      setHasMoreNotes(fetchedNotes.length === PAGE_SIZE);
+      setReviews(fetchedReviews);
+    } catch (error) {
+      console.error('Error fetching content:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const loadMoreNotes = async () => {
     if (loadingMore || notes.length === 0) return;
     setLoadingMore(true);
     try {
       const lastNote = notes[notes.length - 1];
+      const mediaFilter = activeTab === 'all' ? undefined : activeTab;
       const moreNotes = await firestoreHelpers.getRecentQuickNotesPaginated(
         PAGE_SIZE,
-        lastNote.created_at
+        lastNote.created_at,
+        mediaFilter
       );
       setNotes(prev => [...prev, ...moreNotes]);
       setHasMoreNotes(moreNotes.length === PAGE_SIZE);
@@ -73,7 +99,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-[var(--foreground)]">
-              Game<span className="text-[var(--accent)]">Log</span>
+              Media<span className="text-[var(--accent)]">Log</span>
             </h1>
             <Link
               href="/admin"
@@ -85,16 +111,37 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Tab Navigation */}
+      <nav className="border-b border-[var(--border)] bg-[var(--surface)]">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex gap-1 overflow-x-auto">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                  activeTab === tab.key
+                    ? 'border-[var(--accent)] text-[var(--accent)]'
+                    : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border)]'
+                }`}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
+
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-12">
         {notes.length === 0 && reviews.length === 0 && !isAdmin ? (
           <div className="text-center py-20">
             <div className="inline-block p-8 bg-[var(--surface)] rounded-lg border border-[var(--border)]">
               <h2 className="text-2xl font-bold text-[var(--foreground)] mb-2">
-                No content yet!
+                {activeTab === 'all' ? 'No content yet!' : `No ${TABS.find(t => t.key === activeTab)?.label.toLowerCase()} content yet!`}
               </h2>
               <p className="text-[var(--foreground-muted)] mb-6">
-                Start adding games and sharing your thoughts in the admin panel.
+                Start adding content in the admin panel.
               </p>
               <Link
                 href="/admin"
@@ -133,15 +180,16 @@ export default function Home() {
                         )}
                         <div className="flex-1">
                           <div className="flex items-center gap-2 text-sm mb-2">
+                            <span>{getMediaIcon(note.media_type)}</span>
                             {note.game && (
                               <Link
                                 href={`/game/${note.game.id}`}
                                 className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors font-semibold"
                               >
-                                {note.game.name}
+                                {note.game.artist ? `${note.game.artist} - ` : ''}{note.game.name}
                               </Link>
                             )}
-                            <span className="text-[var(--foreground-muted)]">•</span>
+                            <span className="text-[var(--foreground-muted)]">·</span>
                             <span className="text-[var(--foreground-muted)]">
                               {new Date(note.created_at).toLocaleDateString()}
                             </span>
@@ -151,7 +199,6 @@ export default function Home() {
                             {note.content}
                           </p>
 
-                          {/* User-uploaded screenshots */}
                           {note.images && note.images.length > 0 && (
                             <QuickNoteImages images={note.images} />
                           )}
@@ -193,13 +240,14 @@ export default function Home() {
                           <div className="aspect-video relative overflow-hidden">
                             <img
                               src={review.cover_image || review.game?.background_image || ''}
-                              alt={review.game?.name || 'Game'}
+                              alt={review.game?.name || 'Media'}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                             />
                           </div>
                         )}
                         <div className="p-5">
                           <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm">{getMediaIcon(review.media_type)}</span>
                             <span className="px-2 py-1 bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold rounded">
                               {review.rating}/10
                             </span>
@@ -213,7 +261,7 @@ export default function Home() {
                           {review.game && (
                             <p className="text-sm">
                               <span className="text-[var(--accent)] font-semibold">
-                                {review.game.name}
+                                {review.game.artist ? `${review.game.artist} - ` : ''}{review.game.name}
                               </span>
                             </p>
                           )}

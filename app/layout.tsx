@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Toupee's GameLog",
-  description: "Gaming journal and reviews",
+  title: "Toupee's MediaLog",
+  description: "Games, music, movies & TV - journal and reviews",
 };
 
 export default function RootLayout({

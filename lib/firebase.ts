@@ -60,21 +60,37 @@ export const authHelpers = {
   },
 };
 
-// Type definitions matching the Supabase schema
+// Media types
+export type MediaType = 'game' | 'music' | 'movie' | 'tv';
+
+// Type definitions
 export type Game = {
   id: string;
-  rawg_id: number;
+  media_type: MediaType;
   name: string;
   background_image: string;
   released: string;
   genres: string[];
-  platforms: string[];
   created_at: Date;
+  // Game-specific
+  rawg_id?: number;
+  platforms?: string[];
+  // Music-specific
+  musicbrainz_id?: string;
+  artist?: string;
+  label?: string;
+  // Movie/TV-specific
+  tmdb_id?: number;
+  director?: string;
+  cast?: string[];
+  runtime?: number;
+  seasons?: number;
 };
 
 export type QuickNote = {
   id: string;
   game_id: string;
+  media_type: MediaType;
   content: string;
   images: string[];
   cover_image: string | null;
@@ -85,6 +101,7 @@ export type QuickNote = {
 export type Review = {
   id: string;
   game_id: string;
+  media_type: MediaType;
   title: string;
   content: string;
   rating: number;
@@ -108,15 +125,21 @@ export const convertTimestamp = (data: DocumentData) => {
   if (converted.updated_at?.toDate) {
     converted.updated_at = converted.updated_at.toDate();
   }
+  // Default media_type to 'game' for legacy data
+  if (!converted.media_type) {
+    converted.media_type = 'game';
+  }
   return converted;
 };
 
 // Database helper functions
 export const firestoreHelpers = {
-  // Get all games
-  async getGames(): Promise<Game[]> {
+  // Get all games/media items, optionally filtered by media type
+  async getGames(mediaType?: MediaType): Promise<Game[]> {
     const gamesRef = collection(db, 'games');
-    const q = query(gamesRef, orderBy('created_at', 'desc'));
+    const q = mediaType
+      ? query(gamesRef, where('media_type', '==', mediaType), orderBy('created_at', 'desc'))
+      : query(gamesRef, orderBy('created_at', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
       id: doc.id,
@@ -148,6 +171,32 @@ export const firestoreHelpers = {
     } as Game;
   },
 
+  // Get media item by MusicBrainz ID
+  async getByMusicBrainzId(mbId: string): Promise<Game | null> {
+    const gamesRef = collection(db, 'games');
+    const q = query(gamesRef, where('musicbrainz_id', '==', mbId), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    const doc = snapshot.docs[0];
+    return {
+      id: doc.id,
+      ...convertTimestamp(doc.data())
+    } as Game;
+  },
+
+  // Get media item by TMDB ID
+  async getByTmdbId(tmdbId: number): Promise<Game | null> {
+    const gamesRef = collection(db, 'games');
+    const q = query(gamesRef, where('tmdb_id', '==', tmdbId), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    const doc = snapshot.docs[0];
+    return {
+      id: doc.id,
+      ...convertTimestamp(doc.data())
+    } as Game;
+  },
+
   // Add a new game
   async addGame(gameData: Omit<Game, 'id' | 'created_at'>): Promise<Game> {
     const gamesRef = collection(db, 'games');
@@ -163,11 +212,14 @@ export const firestoreHelpers = {
   },
 
   // Get recent quick notes with game data
-  async getRecentQuickNotes(limitCount: number = 10): Promise<QuickNote[]> {
+  async getRecentQuickNotes(limitCount: number = 10, mediaType?: MediaType): Promise<QuickNote[]> {
     const notesRef = collection(db, 'quick_notes');
-    const q = query(notesRef, orderBy('created_at', 'desc'), limit(limitCount));
+    const constraints = mediaType
+      ? [where('media_type', '==', mediaType), orderBy('created_at', 'desc'), limit(limitCount)]
+      : [orderBy('created_at', 'desc'), limit(limitCount)];
+    const q = query(notesRef, ...constraints);
     const snapshot = await getDocs(q);
-    
+
     const notes = await Promise.all(
       snapshot.docs.map(async (noteDoc) => {
         const noteData = convertTimestamp(noteDoc.data());
@@ -179,16 +231,19 @@ export const firestoreHelpers = {
         } as QuickNote;
       })
     );
-    
+
     return notes;
   },
 
   // Get recent quick notes with cursor-based pagination
-  async getRecentQuickNotesPaginated(limitCount: number = 5, lastCreatedAt?: Date): Promise<QuickNote[]> {
+  async getRecentQuickNotesPaginated(limitCount: number = 5, lastCreatedAt?: Date, mediaType?: MediaType): Promise<QuickNote[]> {
     const notesRef = collection(db, 'quick_notes');
-    const q = lastCreatedAt
-      ? query(notesRef, orderBy('created_at', 'desc'), startAfter(Timestamp.fromDate(lastCreatedAt)), limit(limitCount))
-      : query(notesRef, orderBy('created_at', 'desc'), limit(limitCount));
+    const constraints: any[] = [];
+    if (mediaType) constraints.push(where('media_type', '==', mediaType));
+    constraints.push(orderBy('created_at', 'desc'));
+    if (lastCreatedAt) constraints.push(startAfter(Timestamp.fromDate(lastCreatedAt)));
+    constraints.push(limit(limitCount));
+    const q = query(notesRef, ...constraints);
     const snapshot = await getDocs(q);
 
     const notes = await Promise.all(
@@ -260,11 +315,14 @@ export const firestoreHelpers = {
   },
 
   // Get recent reviews with game data
-  async getRecentReviews(limitCount: number = 10): Promise<Review[]> {
+  async getRecentReviews(limitCount: number = 10, mediaType?: MediaType): Promise<Review[]> {
     const reviewsRef = collection(db, 'reviews');
-    const q = query(reviewsRef, orderBy('created_at', 'desc'), limit(limitCount));
+    const constraints = mediaType
+      ? [where('media_type', '==', mediaType), orderBy('created_at', 'desc'), limit(limitCount)]
+      : [orderBy('created_at', 'desc'), limit(limitCount)];
+    const q = query(reviewsRef, ...constraints);
     const snapshot = await getDocs(q);
-    
+
     const reviews = await Promise.all(
       snapshot.docs.map(async (reviewDoc) => {
         const reviewData = convertTimestamp(reviewDoc.data());
@@ -276,7 +334,7 @@ export const firestoreHelpers = {
         } as Review;
       })
     );
-    
+
     return reviews;
   },
 

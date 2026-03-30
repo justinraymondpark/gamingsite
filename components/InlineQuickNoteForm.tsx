@@ -1,27 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { firestoreHelpers, type Game, type QuickNote } from '@/lib/firebase';
+import { firestoreHelpers, type Game, type QuickNote, type MediaType } from '@/lib/firebase';
 import { searchGames, type RAWGGame } from '@/lib/rawg';
+import { searchMusic, type MBSearchResult } from '@/lib/musicbrainz';
+import { searchMovies, searchTV, type TMDBSearchResult } from '@/lib/tmdb';
 
 type Props = {
   onNoteCreated: (note: QuickNote) => void;
 };
 
+const MEDIA_TYPES: { key: MediaType; icon: string; label: string }[] = [
+  { key: 'game', icon: '🎮', label: 'Game' },
+  { key: 'music', icon: '🎵', label: 'Music' },
+  { key: 'movie', icon: '🎬', label: 'Movie' },
+  { key: 'tv', icon: '📺', label: 'TV' },
+];
+
 export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
+  const [mediaType, setMediaType] = useState<MediaType>('game');
   const [recentGames, setRecentGames] = useState<Game[]>([]);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [liveResults, setLiveResults] = useState<RAWGGame[]>([]);
+  const [liveResults, setLiveResults] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    firestoreHelpers.getGames().then(games => setRecentGames(games.slice(0, 8)));
-  }, []);
+    firestoreHelpers.getGames(mediaType).then(games => setRecentGames(games.slice(0, 8)));
+    setSelectedGame(null);
+    setSearchQuery('');
+  }, [mediaType]);
 
-  // Live RAWG search as you type
+  // Live search as you type
   useEffect(() => {
     if (searchQuery.trim().length < 2) {
       setLiveResults([]);
@@ -29,32 +41,75 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       return;
     }
     const timer = setTimeout(async () => {
-      const results = await searchGames(searchQuery);
-      setLiveResults(results.slice(0, 5));
+      let results: any[] = [];
+      if (mediaType === 'game') results = (await searchGames(searchQuery)).slice(0, 5);
+      else if (mediaType === 'music') results = (await searchMusic(searchQuery)).slice(0, 5);
+      else if (mediaType === 'movie') results = (await searchMovies(searchQuery)).slice(0, 5);
+      else if (mediaType === 'tv') results = (await searchTV(searchQuery)).slice(0, 5);
+      setLiveResults(results);
       setShowDropdown(true);
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, mediaType]);
 
-  const handleSelectRawgGame = async (rawgGame: RAWGGame) => {
-    // Check if already in DB, otherwise add it
-    const existing = await firestoreHelpers.getGameByRawgId(rawgGame.id);
-    if (existing) {
-      setSelectedGame(existing);
+  const handleSelectResult = async (result: any) => {
+    let item: Game | null = null;
+
+    if (mediaType === 'game') {
+      const rawg = result as RAWGGame;
+      const existing = await firestoreHelpers.getGameByRawgId(rawg.id);
+      if (existing) {
+        item = existing;
+      } else {
+        item = await firestoreHelpers.addGame({
+          media_type: 'game',
+          rawg_id: rawg.id,
+          name: rawg.name,
+          background_image: rawg.background_image,
+          released: rawg.released,
+          genres: rawg.genres.map(g => g.name),
+          platforms: rawg.platforms.map(p => p.platform.name),
+        });
+      }
+    } else if (mediaType === 'music') {
+      const mb = result as MBSearchResult;
+      const existing = await firestoreHelpers.getByMusicBrainzId(mb.releaseGroupId);
+      if (existing) {
+        item = existing;
+      } else {
+        item = await firestoreHelpers.addGame({
+          media_type: 'music',
+          musicbrainz_id: mb.releaseGroupId,
+          name: mb.title,
+          artist: mb.artist,
+          background_image: mb.coverArtUrl || '',
+          released: mb.releaseDate,
+          genres: mb.genres,
+        });
+      }
     } else {
-      const newGame = await firestoreHelpers.addGame({
-        rawg_id: rawgGame.id,
-        name: rawgGame.name,
-        background_image: rawgGame.background_image,
-        released: rawgGame.released,
-        genres: rawgGame.genres.map(g => g.name),
-        platforms: rawgGame.platforms.map(p => p.platform.name),
-      });
-      setSelectedGame(newGame);
+      const tmdb = result as TMDBSearchResult;
+      const existing = await firestoreHelpers.getByTmdbId(tmdb.id);
+      if (existing) {
+        item = existing;
+      } else {
+        item = await firestoreHelpers.addGame({
+          media_type: tmdb.type,
+          tmdb_id: tmdb.id,
+          name: tmdb.title,
+          background_image: tmdb.backdropUrl || tmdb.posterUrl || '',
+          released: tmdb.releaseDate,
+          genres: [],
+        });
+      }
     }
-    setSearchQuery('');
-    setLiveResults([]);
-    setShowDropdown(false);
+
+    if (item) {
+      setSelectedGame(item);
+      setSearchQuery('');
+      setLiveResults([]);
+      setShowDropdown(false);
+    }
   };
 
   const handleSelectRecentGame = (game: Game) => {
@@ -70,6 +125,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
     try {
       const note = await firestoreHelpers.addQuickNote({
         game_id: selectedGame.id,
+        media_type: mediaType,
         content: content.trim(),
         images: [],
         cover_image: null,
@@ -84,12 +140,58 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
     }
   };
 
+  const renderResultLabel = (result: any): string => {
+    if (mediaType === 'game') return (result as RAWGGame).name;
+    if (mediaType === 'music') {
+      const mb = result as MBSearchResult;
+      return `${mb.artist} - ${mb.title}`;
+    }
+    return (result as TMDBSearchResult).title;
+  };
+
+  const renderResultSub = (result: any): string => {
+    if (mediaType === 'game') {
+      const g = result as RAWGGame;
+      return g.released ? new Date(g.released).getFullYear().toString() : 'TBA';
+    }
+    if (mediaType === 'music') {
+      const mb = result as MBSearchResult;
+      return `${mb.type} · ${mb.releaseDate ? new Date(mb.releaseDate).getFullYear() : 'TBA'}`;
+    }
+    const tmdb = result as TMDBSearchResult;
+    return tmdb.releaseDate ? new Date(tmdb.releaseDate).getFullYear().toString() : 'TBA';
+  };
+
+  const getResultKey = (result: any): string => {
+    if (mediaType === 'game') return `game-${(result as RAWGGame).id}`;
+    if (mediaType === 'music') return `mb-${(result as MBSearchResult).releaseGroupId}`;
+    return `tmdb-${(result as TMDBSearchResult).id}`;
+  };
+
   return (
     <form
       onSubmit={handleSubmit}
       className="bg-[var(--surface)] rounded-lg p-4 border border-[var(--accent-dim)] mb-6 space-y-3"
     >
-      {/* Game selection */}
+      {/* Media type pills */}
+      <div className="flex gap-1.5">
+        {MEDIA_TYPES.map((mt) => (
+          <button
+            key={mt.key}
+            type="button"
+            onClick={() => setMediaType(mt.key)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+              mediaType === mt.key
+                ? 'bg-[var(--accent)] text-[var(--accent-text)]'
+                : 'bg-[var(--background)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)]'
+            }`}
+          >
+            {mt.icon} {mt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Item selection */}
       {!selectedGame ? (
         <div>
           <div className="relative">
@@ -99,26 +201,21 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => liveResults.length > 0 && setShowDropdown(true)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-              placeholder="Search for a game..."
+              placeholder={`Search for ${mediaType === 'music' ? 'an album' : mediaType === 'tv' ? 'a TV show' : `a ${mediaType}`}...`}
               className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)]"
             />
             {showDropdown && liveResults.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] border border-[var(--accent)] rounded-lg shadow-lg z-10 overflow-hidden">
-                {liveResults.map((game) => (
+                {liveResults.map((result) => (
                   <button
-                    key={game.id}
+                    key={getResultKey(result)}
                     type="button"
-                    onClick={() => handleSelectRawgGame(game)}
+                    onClick={() => handleSelectResult(result)}
                     className="w-full flex gap-3 p-2.5 hover:bg-[var(--background)] transition-colors text-left border-b border-[var(--border)] last:border-b-0"
                   >
-                    {game.background_image && (
-                      <img src={game.background_image} alt={game.name} className="w-10 h-10 rounded object-cover flex-shrink-0" />
-                    )}
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-[var(--foreground)] truncate">{game.name}</h4>
-                      <p className="text-xs text-[var(--foreground-muted)]">
-                        {game.released ? new Date(game.released).getFullYear() : 'TBA'}
-                      </p>
+                      <h4 className="text-sm font-bold text-[var(--foreground)] truncate">{renderResultLabel(result)}</h4>
+                      <p className="text-xs text-[var(--foreground-muted)]">{renderResultSub(result)}</p>
                     </div>
                   </button>
                 ))}
@@ -134,7 +231,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
                   onClick={() => handleSelectRecentGame(game)}
                   className="px-3 py-1 bg-[var(--background)] hover:bg-[var(--accent)] hover:text-[var(--accent-text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full text-xs font-medium text-[var(--foreground)] transition-all"
                 >
-                  {game.name}
+                  {game.artist ? `${game.artist} - ${game.name}` : game.name}
                 </button>
               ))}
             </div>
@@ -145,7 +242,9 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
           {selectedGame.background_image && (
             <img src={selectedGame.background_image} alt={selectedGame.name} className="w-10 h-10 rounded object-cover flex-shrink-0" />
           )}
-          <span className="text-sm font-semibold text-[var(--foreground)] flex-1">{selectedGame.name}</span>
+          <span className="text-sm font-semibold text-[var(--foreground)] flex-1">
+            {selectedGame.artist ? `${selectedGame.artist} - ` : ''}{selectedGame.name}
+          </span>
           <button
             type="button"
             onClick={() => setSelectedGame(null)}
@@ -160,7 +259,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder={selectedGame ? "Quick thought..." : "Select a game first..."}
+        placeholder={selectedGame ? "Quick thought..." : "Select something first..."}
         disabled={!selectedGame}
         rows={2}
         className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] resize-none disabled:opacity-50"

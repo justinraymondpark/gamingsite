@@ -57,7 +57,7 @@ export default function GamePage() {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-[var(--foreground)] mb-4">Game not found</h1>
+          <h1 className="text-2xl font-bold text-[var(--foreground)] mb-4">Not found</h1>
           <Link href="/" className="text-[var(--accent)] hover:text-[var(--accent-hover)]">
             ← Back to Home
           </Link>
@@ -90,14 +90,34 @@ export default function GamePage() {
         
         <div className="max-w-7xl mx-auto px-4 -mt-32 relative z-10">
           <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-8 shadow-xl">
-            <h1 className="text-5xl font-bold text-[var(--foreground)] mb-4">{game.name}</h1>
-            
+            <h1 className="text-5xl font-bold text-[var(--foreground)] mb-2">
+              {game.artist ? `${game.artist} - ` : ''}{game.name}
+            </h1>
+            {game.director && (
+              <p className="text-lg text-[var(--foreground-muted)] mb-2">Directed by {game.director}</p>
+            )}
+
             <div className="flex flex-wrap gap-4 text-sm text-[var(--foreground-muted)]">
               {game.released && (
                 <div><span className="font-semibold text-[var(--foreground)]">Released:</span> {new Date(game.released).getFullYear()}</div>
               )}
               {game.genres && game.genres.length > 0 && (
                 <div><span className="font-semibold text-[var(--foreground)]">Genres:</span> {game.genres.join(', ')}</div>
+              )}
+              {game.platforms && game.platforms.length > 0 && (
+                <div><span className="font-semibold text-[var(--foreground)]">Platforms:</span> {game.platforms.join(', ')}</div>
+              )}
+              {game.cast && game.cast.length > 0 && (
+                <div><span className="font-semibold text-[var(--foreground)]">Cast:</span> {game.cast.slice(0, 5).join(', ')}</div>
+              )}
+              {game.runtime && (
+                <div><span className="font-semibold text-[var(--foreground)]">Runtime:</span> {game.runtime} min</div>
+              )}
+              {game.seasons && (
+                <div><span className="font-semibold text-[var(--foreground)]">Seasons:</span> {game.seasons}</div>
+              )}
+              {game.label && (
+                <div><span className="font-semibold text-[var(--foreground)]">Label:</span> {game.label}</div>
               )}
               {avgRating && (
                 <div><span className="font-semibold text-[var(--foreground)]">My Rating:</span> <span className="text-[var(--accent)] font-bold">{avgRating}/10</span></div>
@@ -121,7 +141,7 @@ export default function GamePage() {
       <div className="max-w-7xl mx-auto px-4 py-12">
         {notes.length === 0 && reviews.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-[var(--foreground-muted)] text-lg">No content yet for this game.</p>
+            <p className="text-[var(--foreground-muted)] text-lg">No content yet.</p>
           </div>
         ) : (
           <div className="space-y-4">
