@@ -395,4 +395,20 @@ export const firestoreHelpers = {
     const reviewRef = doc(db, 'reviews', id);
     await deleteDoc(reviewRef);
   },
+
+  // Backfill media_type on legacy documents that don't have it
+  async backfillMediaType(): Promise<number> {
+    let updated = 0;
+    for (const collectionName of ['games', 'quick_notes', 'reviews']) {
+      const colRef = collection(db, collectionName);
+      const snapshot = await getDocs(colRef);
+      for (const docSnap of snapshot.docs) {
+        if (!docSnap.data().media_type) {
+          await updateDoc(doc(db, collectionName, docSnap.id), { media_type: 'game' });
+          updated++;
+        }
+      }
+    }
+    return updated;
+  },
 };

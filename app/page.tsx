@@ -36,6 +36,13 @@ export default function Home() {
   const [hasMoreNotes, setHasMoreNotes] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  // One-time backfill of media_type on legacy documents
+  useEffect(() => {
+    firestoreHelpers.backfillMediaType().then(count => {
+      if (count > 0) console.log(`Backfilled media_type on ${count} documents`);
+    });
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     setNotes([]);
