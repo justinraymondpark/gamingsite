@@ -23,19 +23,19 @@ export default function QuickNoteImages({ images }: QuickNoteImagesProps) {
           <button
             key={i}
             onClick={() => openLightbox(i)}
-            className="h-48 rounded-lg object-cover border border-[var(--border)] hover:border-[var(--accent)] transition-colors cursor-pointer flex-shrink-0"
+            className="thumb h-48 cursor-pointer flex-shrink-0"
           >
             <img
               src={img}
               alt={`Screenshot ${i + 1}`}
-              className="h-full w-auto object-cover rounded-lg"
+              className="h-full w-auto object-cover"
             />
           </button>
         ))}
         {images.length > 3 && (
           <button
             onClick={() => openLightbox(3)}
-            className="flex items-center justify-center h-48 w-32 bg-[var(--surface-light)] rounded-lg border border-[var(--border)] hover:border-[var(--accent)] text-[var(--foreground-muted)] hover:text-[var(--accent)] text-sm font-semibold cursor-pointer transition-colors"
+            className="thumb flex items-center justify-center h-48 w-32 bg-[var(--surface-light)] text-[var(--foreground-muted)] hover:text-[var(--accent)] text-sm font-semibold cursor-pointer"
           >
             +{images.length - 3}
           </button>

@@ -104,19 +104,19 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="text-[var(--foreground-muted)]">Loading...</div>
+        <div className="loader" aria-label="Loading" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="max-w-6xl mx-auto px-4 py-6">
+      <header className="site-header">
+        <div className="max-w-6xl mx-auto px-4 py-5">
           <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-[var(--foreground)]">
-              Media<span className="text-[var(--accent)]">Log</span>
+            <h1 className="brand text-[var(--foreground)]">
+              Media<span className="neon-accent">Log</span>
             </h1>
             <Link
               href="/admin"
@@ -129,18 +129,14 @@ export default function Home() {
       </header>
 
       {/* Tab Navigation */}
-      <nav className="border-b border-[var(--border)] bg-[var(--surface)]">
+      <nav className="border-b border-[var(--border)]">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="flex gap-1 overflow-x-auto items-center">
             {TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                  activeTab === tab.key
-                    ? 'border-[var(--accent)] text-[var(--accent)]'
-                    : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border)]'
-                }`}
+                className={`tab-btn ${activeTab === tab.key ? 'tab-btn-active' : ''}`}
               >
                 {tab.icon} {tab.label}
               </button>
@@ -152,9 +148,9 @@ export default function Home() {
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-12">
         {notes.length === 0 && reviews.length === 0 && !isAdmin ? (
-          <div className="text-center py-20">
-            <div className="inline-block p-8 bg-[var(--surface)] rounded-lg border border-[var(--border)]">
-              <h2 className="text-2xl font-bold text-[var(--foreground)] mb-2">
+          <div className="text-center py-20 rise">
+            <div className="card inline-block p-8">
+              <h2 className="section-title text-[var(--foreground)] mb-2">
                 {activeTab === 'all' ? 'No content yet!' : `No ${TABS.find(t => t.key === activeTab)?.label.toLowerCase()} content yet!`}
               </h2>
               <p className="text-[var(--foreground-muted)] mb-6">
@@ -162,18 +158,19 @@ export default function Home() {
               </p>
               <Link
                 href="/admin"
-                className="inline-block px-6 py-3 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+                className="btn-primary inline-block px-6 py-3"
               >
                 Go to Admin
               </Link>
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-12">
             {/* Quick Notes Section */}
             {(notes.length > 0 || isAdmin) && (
               <section>
-                <h2 className="text-2xl font-bold text-[var(--foreground)] mb-6">
+                <p className="section-label mb-1">Journal</p>
+                <h2 className="section-title text-[var(--foreground)] mb-6">
                   Quick Notes
                 </h2>
 
@@ -182,18 +179,21 @@ export default function Home() {
                 )}
 
                 <div className="space-y-4">
-                  {notes.map((note) => (
+                  {notes.map((note, i) => (
                     <div
                       key={note.id}
-                      className="bg-[var(--surface)] rounded-lg p-5 border border-[var(--border)] hover:border-[var(--accent-dim)] transition-colors"
+                      className="card card-hover rise p-5"
+                      style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
                     >
                       <div className="flex gap-4">
                         {note.game?.background_image && (
-                          <img
-                            src={note.game.background_image}
-                            alt={note.game.name}
-                            className="w-20 h-20 rounded object-cover flex-shrink-0"
-                          />
+                          <div className="thumb w-20 h-20 flex-shrink-0">
+                            <img
+                              src={note.game.background_image}
+                              alt={note.game.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
                         )}
                         <div className="flex-1">
                           <div className="flex items-center gap-2 text-sm mb-2">
@@ -230,7 +230,7 @@ export default function Home() {
                     <button
                       onClick={loadMoreNotes}
                       disabled={loadingMore}
-                      className="px-6 py-3 bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] rounded-lg font-semibold hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+                      className="btn-ghost px-6 py-3"
                     >
                       {loadingMore ? 'Loading...' : 'Load More Notes'}
                     </button>
@@ -242,37 +242,40 @@ export default function Home() {
             {/* Reviews Section */}
             {reviews.length > 0 && (
               <section>
-                <h2 className="text-2xl font-bold text-[var(--foreground)] mb-6">
+                <p className="section-label mb-1">In depth</p>
+                <h2 className="section-title text-[var(--foreground)] mb-6">
                   Recent Reviews
                 </h2>
                 <div className="grid gap-6 md:grid-cols-2">
-                  {reviews.map((review) => (
+                  {reviews.map((review, i) => (
                     <Link
                       key={review.id}
                       href={`/review/${review.id}`}
-                      className="block group"
+                      className="block group rise"
+                      style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
                     >
-                      <div className="bg-[var(--surface)] rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--accent)] transition-all hover:transform hover:scale-[1.02]">
+                      <div className="card card-hover overflow-hidden h-full">
                         {(review.cover_image || review.game?.background_image) && (
                           <div className="aspect-video relative overflow-hidden">
                             <img
                               src={review.cover_image || review.game?.background_image || ''}
                               alt={review.game?.name || 'Media'}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[var(--background)]/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                           </div>
                         )}
                         <div className="p-5">
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-sm">{getMediaIcon(review.media_type)}</span>
-                            <span className="px-2 py-1 bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold rounded">
+                            <span className="badge-rating px-2 py-1 text-xs">
                               {review.rating}/10
                             </span>
                             <span className="text-xs text-[var(--foreground-muted)]">
                               {new Date(review.created_at).toLocaleDateString()}
                             </span>
                           </div>
-                          <h3 className="text-xl font-bold text-[var(--foreground)] mb-1 group-hover:text-[var(--accent)] transition-colors">
+                          <h3 className="font-display text-xl text-[var(--foreground)] mb-1 group-hover:text-[var(--accent)] transition-colors">
                             {review.title}
                           </h3>
                           {review.game && (

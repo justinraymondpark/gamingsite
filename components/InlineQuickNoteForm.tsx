@@ -241,7 +241,8 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-[var(--surface)] rounded-lg p-4 border border-[var(--accent-dim)] mb-6 space-y-3"
+      className="card p-4 mb-6 space-y-3"
+      style={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, var(--border))' }}
     >
       {/* Media type pills */}
       <div className="flex flex-wrap gap-1.5">
@@ -250,11 +251,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
             key={mt.key}
             type="button"
             onClick={() => setMediaType(mt.key)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-              mediaType === mt.key
-                ? 'bg-[var(--accent)] text-[var(--accent-text)]'
-                : 'bg-[var(--background)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)]'
-            }`}
+            className={`chip ${mediaType === mt.key ? 'chip-active' : ''}`}
           >
             {mt.icon} {mt.label}
           </button>
@@ -272,10 +269,10 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
               onFocus={() => liveResults.length > 0 && setShowDropdown(true)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
               placeholder={`Search for ${mediaType === 'music' ? 'an album' : mediaType === 'guitar' ? 'a song' : mediaType === 'book' ? 'a book' : mediaType === 'tv' ? 'a TV show' : `a ${mediaType}`}...`}
-              className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)]"
+              className="input"
             />
             {showDropdown && liveResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] border border-[var(--accent)] rounded-lg shadow-lg z-10 overflow-hidden">
+              <div className="menu absolute top-full left-0 right-0 mt-1 z-10">
                 {liveResults.map((result) => (
                   <button
                     key={getResultKey(result)}
@@ -299,7 +296,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
                   key={game.id}
                   type="button"
                   onClick={() => handleSelectRecentGame(game)}
-                  className="px-3 py-1 bg-[var(--background)] hover:bg-[var(--accent)] hover:text-[var(--accent-text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full text-xs font-medium text-[var(--foreground)] transition-all"
+                  className="chip hover:bg-[var(--accent)] hover:text-[var(--accent-text)] hover:border-[var(--accent)]"
                 >
                   {getMediaTitle(game)}
                 </button>
@@ -310,7 +307,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       ) : (
         <div className="flex items-center gap-3">
           {selectedGame.background_image && (
-            <img src={selectedGame.background_image} alt={selectedGame.name} className="w-10 h-10 rounded object-cover flex-shrink-0" />
+            <img src={selectedGame.background_image} alt={selectedGame.name} className="w-10 h-10 rounded-[var(--radius-sm)] object-cover flex-shrink-0" />
           )}
           <span className="text-sm font-semibold text-[var(--foreground)] flex-1">
             {getMediaTitle(selectedGame)}
@@ -332,13 +329,13 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
         placeholder={selectedGame ? (mediaType === 'guitar' ? '' : "Quick thought...") : "Select something first..."}
         disabled={!selectedGame}
         rows={2}
-        className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] resize-none disabled:opacity-50"
+        className="input resize-none"
       />
       <div className="flex items-center justify-between">
         <button
           type="submit"
           disabled={isSubmitting || !selectedGame || !content.trim()}
-          className="px-4 py-2 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-semibold hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
+          className="btn-primary px-4 py-2 text-sm"
         >
           {isSubmitting ? 'Posting...' : 'Post Note'}
         </button>
