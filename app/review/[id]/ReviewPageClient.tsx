@@ -6,6 +6,12 @@ import ReactMarkdown from 'react-markdown';
 import ImageGallery from '@/components/ImageGallery';
 import { useEffect, useState } from 'react';
 
+function getMediaTitle(review: Review): string {
+  if (!review.game) return '';
+  const creator = review.game.artist || review.game.author;
+  return creator ? `${creator} - ${review.game.name}` : review.game.name;
+}
+
 export default function ReviewPage() {
   const [review, setReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +70,11 @@ export default function ReviewPage() {
       <main className="max-w-4xl mx-auto px-4 py-12">
         {(review.cover_image || review.game?.background_image) && (
           <div className="aspect-video rounded-lg overflow-hidden mb-8">
-            <img src={review.cover_image || review.game?.background_image || ''} alt={review.game?.name || 'Game'} className="w-full h-full object-cover" />
+            <img
+              src={review.cover_image || review.game?.background_image || ''}
+              alt={review.game?.name || 'Media'}
+              className={`w-full h-full ${review.game?.media_type === 'book' ? 'object-contain bg-[var(--surface)]' : 'object-cover'}`}
+            />
           </div>
         )}
 
@@ -72,7 +82,7 @@ export default function ReviewPage() {
           <h1 className="text-4xl font-bold text-[var(--foreground)] mb-3">{review.title}</h1>
           {review.game && (
             <Link href={`/game/${review.game.id}`} className="text-2xl text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors inline-block mb-4">
-              {review.game.artist ? `${review.game.artist} - ` : ''}{review.game.name}
+              {getMediaTitle(review)}
             </Link>
           )}
           
@@ -135,7 +145,7 @@ export default function ReviewPage() {
 
         {review.images?.length > 0 && (
           <div className="mt-8">
-            <h3 className="text-2xl font-bold text-[var(--foreground)] mb-4">Screenshots</h3>
+            <h3 className="text-2xl font-bold text-[var(--foreground)] mb-4">Images</h3>
             <ImageGallery images={review.images} />
           </div>
         )}

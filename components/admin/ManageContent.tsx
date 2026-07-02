@@ -8,11 +8,14 @@ import ImageUpload from './ImageUpload';
 type ContentItem = {
   id: string;
   game_id: string;
+  media_type?: string;
   created_at: string | Date;
   game?: {
     id: string;
     name: string;
     background_image: string;
+    artist?: string;
+    author?: string;
   };
   // Quick note fields
   content?: string;
@@ -38,6 +41,12 @@ const PLATFORMS = [
   'PC', 'PlayStation 5', 'PlayStation 4', 'Xbox Series X/S', 
   'Xbox One', 'Nintendo Switch', 'Steam Deck', 'Mobile'
 ];
+
+function getContentItemTitle(item: ContentItem): string {
+  if (!item.game) return '';
+  const creator = item.game.artist || item.game.author;
+  return creator ? `${creator} - ${item.game.name}` : item.game.name;
+}
 
 export default function ManageContent() {
   const searchParams = useSearchParams();
@@ -207,7 +216,7 @@ export default function ManageContent() {
           )}
           <div>
             <h3 className="font-bold text-[var(--foreground)]">
-              {editMode.data.game?.name}
+              {getContentItemTitle(editMode.data)}
             </h3>
             <p className="text-sm text-[var(--foreground-muted)]">
               {new Date(editMode.data.created_at).toLocaleDateString()}
@@ -271,6 +280,7 @@ export default function ManageContent() {
               />
             </div>
 
+            {(editMode.data.media_type === 'game' || !editMode.data.media_type) && (
             <div>
               <label className="block text-sm font-semibold text-[var(--foreground)] mb-2">
                 Platforms
@@ -294,7 +304,9 @@ export default function ManageContent() {
                 ))}
               </div>
             </div>
+            )}
 
+            {(editMode.data.media_type === 'game' || !editMode.data.media_type) && (
             <div>
               <label className="block text-sm font-semibold text-[var(--foreground)] mb-2">
                 Playtime (hours)
@@ -307,6 +319,7 @@ export default function ManageContent() {
                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
+            )}
 
             <div>
               <label className="block text-sm font-semibold text-[var(--foreground)] mb-2">
@@ -456,7 +469,7 @@ export default function ManageContent() {
                           {review.title}
                         </h3>
                         <p className="text-sm text-[var(--accent)] font-semibold">
-                          {review.game?.name}
+                          {getContentItemTitle(review)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -528,7 +541,7 @@ export default function ManageContent() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-[var(--accent)] font-semibold">
-                          {note.game?.name}
+                          {getContentItemTitle(note)}
                         </span>
                         <span className="text-[var(--foreground-muted)]">•</span>
                         <span className="text-[var(--foreground-muted)]">

@@ -61,7 +61,7 @@ export const authHelpers = {
 };
 
 // Media types
-export type MediaType = 'game' | 'music' | 'guitar' | 'movie' | 'tv';
+export type MediaType = 'game' | 'music' | 'guitar' | 'book' | 'movie' | 'tv';
 
 // Type definitions
 export type Game = {
@@ -83,6 +83,13 @@ export type Game = {
   label?: string;
   release_title?: string;
   duration_ms?: number;
+  // Book-specific
+  openlibrary_id?: string;
+  author?: string;
+  publisher?: string;
+  isbn?: string;
+  page_count?: number;
+  openlibrary_url?: string;
   // Movie/TV-specific
   tmdb_id?: number;
   director?: string;
@@ -179,6 +186,19 @@ export const firestoreHelpers = {
   async getByMusicBrainzId(mbId: string): Promise<Game | null> {
     const gamesRef = collection(db, 'games');
     const q = query(gamesRef, where('musicbrainz_id', '==', mbId), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    const doc = snapshot.docs[0];
+    return {
+      id: doc.id,
+      ...convertTimestamp(doc.data())
+    } as Game;
+  },
+
+  // Get media item by Open Library work ID
+  async getByOpenLibraryId(openLibraryId: string): Promise<Game | null> {
+    const gamesRef = collection(db, 'games');
+    const q = query(gamesRef, where('openlibrary_id', '==', openLibraryId), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     const doc = snapshot.docs[0];

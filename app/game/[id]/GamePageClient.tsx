@@ -69,6 +69,7 @@ export default function GamePage() {
   const avgRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
     : null;
+  const creator = game.artist || game.author;
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -83,7 +84,11 @@ export default function GamePage() {
       <div className="relative">
         {game.background_image && (
           <div className="h-96 overflow-hidden">
-            <img src={game.background_image} alt={game.name} className="w-full h-full object-cover" />
+            <img
+              src={game.background_image}
+              alt={game.name}
+              className={`w-full h-full ${game.media_type === 'book' ? 'object-contain bg-[var(--surface)]' : 'object-cover'}`}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--background)] via-[var(--background)]/50 to-transparent" />
           </div>
         )}
@@ -91,7 +96,7 @@ export default function GamePage() {
         <div className="max-w-7xl mx-auto px-4 -mt-32 relative z-10">
           <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-8 shadow-xl">
             <h1 className="text-5xl font-bold text-[var(--foreground)] mb-2">
-              {game.artist ? `${game.artist} - ` : ''}{game.name}
+              {creator ? `${creator} - ` : ''}{game.name}
             </h1>
             {game.director && (
               <p className="text-lg text-[var(--foreground-muted)] mb-2">Directed by {game.director}</p>
@@ -99,7 +104,7 @@ export default function GamePage() {
 
             <div className="flex flex-wrap gap-4 text-sm text-[var(--foreground-muted)]">
               {game.released && (
-                <div><span className="font-semibold text-[var(--foreground)]">Released:</span> {new Date(game.released).getFullYear()}</div>
+                <div><span className="font-semibold text-[var(--foreground)]">{game.media_type === 'book' ? 'Published:' : 'Released:'}</span> {new Date(game.released).getFullYear()}</div>
               )}
               {game.genres && game.genres.length > 0 && (
                 <div><span className="font-semibold text-[var(--foreground)]">Genres:</span> {game.genres.join(', ')}</div>
@@ -121,6 +126,25 @@ export default function GamePage() {
               )}
               {game.release_title && (
                 <div><span className="font-semibold text-[var(--foreground)]">Release:</span> {game.release_title}</div>
+              )}
+              {game.publisher && (
+                <div><span className="font-semibold text-[var(--foreground)]">Publisher:</span> {game.publisher}</div>
+              )}
+              {game.page_count && (
+                <div><span className="font-semibold text-[var(--foreground)]">Pages:</span> {game.page_count}</div>
+              )}
+              {game.isbn && (
+                <div><span className="font-semibold text-[var(--foreground)]">ISBN:</span> {game.isbn}</div>
+              )}
+              {game.openlibrary_url && (
+                <a
+                  href={game.openlibrary_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]"
+                >
+                  Open Library
+                </a>
               )}
               {avgRating && (
                 <div><span className="font-semibold text-[var(--foreground)]">My Rating:</span> <span className="text-[var(--accent)] font-bold">{avgRating}/10</span></div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { searchGames, type RAWGGame } from '@/lib/rawg';
 import { searchMusic, searchTracks, type MBSearchResult, type MBTrackSearchResult } from '@/lib/musicbrainz';
+import { searchBooks, type BookSearchResult } from '@/lib/books';
 import { searchMovies, searchTV, getMovieDetails, getTVDetails, getGenreNames, type TMDBSearchResult } from '@/lib/tmdb';
 import { firestoreHelpers, type Game, type MediaType } from '@/lib/firebase';
 import ImageUpload from './ImageUpload';
@@ -19,9 +20,15 @@ const MEDIA_TYPE_CONFIG: Record<MediaType, { label: string; icon: string; search
   game: { label: 'Games', icon: '🎮', searchPlaceholder: 'Search for a game...', color: 'var(--accent)' },
   music: { label: 'Music', icon: '🎵', searchPlaceholder: 'Search for an album or artist...', color: '#a855f7' },
   guitar: { label: 'Guitar', icon: '🎸', searchPlaceholder: 'Search for a song...', color: '#22c55e' },
+  book: { label: 'Books', icon: '📚', searchPlaceholder: 'Search for a book...', color: '#f59e0b' },
   movie: { label: 'Movies', icon: '🎬', searchPlaceholder: 'Search for a movie...', color: '#ef4444' },
   tv: { label: 'TV Shows', icon: '📺', searchPlaceholder: 'Search for a TV show...', color: '#3b82f6' },
 };
+
+function getMediaTitle(game: Game): string {
+  const creator = game.artist || game.author;
+  return creator ? `${creator} - ${game.name}` : game.name;
+}
 
 export default function CreateContent() {
   // Media type selection
@@ -84,6 +91,8 @@ export default function CreateContent() {
         results = (await searchMusic(searchQuery)).slice(0, 5);
       } else if (mediaType === 'guitar') {
         results = (await searchTracks(searchQuery)).slice(0, 5);
+      } else if (mediaType === 'book') {
+        results = (await searchBooks(searchQuery)).slice(0, 5);
       } else if (mediaType === 'movie') {
         results = (await searchMovies(searchQuery)).slice(0, 5);
       } else if (mediaType === 'tv') {
@@ -120,6 +129,8 @@ export default function CreateContent() {
       results = await searchMusic(searchQuery);
     } else if (mediaType === 'guitar') {
       results = await searchTracks(searchQuery);
+    } else if (mediaType === 'book') {
+      results = await searchBooks(searchQuery);
     } else if (mediaType === 'movie') {
       results = await searchMovies(searchQuery);
     } else if (mediaType === 'tv') {
@@ -206,6 +217,34 @@ export default function CreateContent() {
     finishSelection(selectedItem);
   };
 
+  const handleSelectBook = async (result: BookSearchResult) => {
+    const existing = await firestoreHelpers.getByOpenLibraryId(result.workKey);
+    let selectedItem: Game;
+    if (existing) {
+      selectedItem = existing;
+    } else {
+      try {
+        selectedItem = await firestoreHelpers.addGame({
+          media_type: 'book',
+          openlibrary_id: result.workKey,
+          name: result.title,
+          author: result.author,
+          background_image: result.coverUrl || '',
+          released: result.firstPublishYear ? `${result.firstPublishYear}-01-01` : '',
+          genres: result.subjects,
+          publisher: result.publishers[0] || undefined,
+          isbn: result.isbn || undefined,
+          page_count: result.pageCount || undefined,
+          openlibrary_url: result.openLibraryUrl,
+        });
+      } catch (error) {
+        alert('Failed to add book');
+        return;
+      }
+    }
+    finishSelection(selectedItem);
+  };
+
   const handleSelectTMDB = async (result: TMDBSearchResult) => {
     const existing = await firestoreHelpers.getByTmdbId(result.id);
     let selectedItem: Game;
@@ -262,6 +301,7 @@ export default function CreateContent() {
     if (mediaType === 'game') handleSelectGame(result);
     else if (mediaType === 'music') handleSelectMusic(result);
     else if (mediaType === 'guitar') handleSelectTrack(result);
+    else if (mediaType === 'book') handleSelectBook(result);
     else handleSelectTMDB(result);
   };
 
@@ -379,6 +419,7 @@ export default function CreateContent() {
   const getFindLabel = () => {
     if (mediaType === 'music') return 'an Album';
     if (mediaType === 'guitar') return 'a Song';
+    if (mediaType === 'book') return 'a Book';
     if (mediaType === 'tv') return 'a TV Show';
     return `a ${config?.label.slice(0, -1)}`;
   };
@@ -386,11 +427,13 @@ export default function CreateContent() {
   const getSearchProviderLabel = () => {
     if (mediaType === 'game') return 'RAWG';
     if (mediaType === 'music' || mediaType === 'guitar') return 'MusicBrainz';
+    if (mediaType === 'book') return 'Open Library';
     return 'TMDB';
   };
 
   const getNotePlaceholder = () => {
     if (mediaType === 'guitar') return '';
+    if (mediaType === 'book') return 'This chapter stuck with me...';
     if (mediaType === 'music') return 'This album hits different...';
     if (mediaType === 'movie') return 'Just watched this and...';
     return 'Just beat the first boss and...';
@@ -398,20 +441,29 @@ export default function CreateContent() {
 
   const getReviewTitlePlaceholder = () => {
     if (mediaType === 'guitar') return '';
+    if (mediaType === 'book') return 'A story that stays with you';
     if (mediaType === 'music') return 'A genre-defining masterpiece';
     return 'A masterpiece of storytelling';
   };
 
   const getProPlaceholder = () => {
     if (mediaType === 'guitar') return '';
+    if (mediaType === 'book') return 'Excellent prose';
     if (mediaType === 'music') return 'Amazing production';
     return 'Beautiful art direction';
   };
 
   const getConPlaceholder = () => {
     if (mediaType === 'guitar') return '';
+    if (mediaType === 'book') return 'Slow middle';
     if (mediaType === 'music') return 'Too short';
     return 'Performance issues';
+  };
+
+  const getReviewContentPlaceholder = () => {
+    if (mediaType === 'guitar') return '';
+    if (mediaType === 'book') return "## First Impressions\n\nI kept turning pages because...";
+    return "## First Impressions\n\nFrom the moment I started...";
   };
 
   // Render a live search result item based on media type
@@ -460,6 +512,32 @@ export default function CreateContent() {
             <h4 className="text-sm font-bold text-[var(--foreground)] truncate">{track.title}</h4>
             <p className="text-xs text-[var(--foreground-muted)] truncate">
               {track.artist}{track.releaseTitle ? ` · ${track.releaseTitle}` : ''}
+            </p>
+          </div>
+        </button>
+      );
+    }
+
+    if (mediaType === 'book') {
+      const book = result as BookSearchResult;
+      return (
+        <button
+          key={book.workKey}
+          type="button"
+          onClick={() => handleSelectLiveResult(result)}
+          className="w-full flex gap-3 p-3 hover:bg-[var(--background)] transition-colors text-left border-b border-[var(--border)] last:border-b-0"
+        >
+          {book.coverUrl ? (
+            <img src={book.coverUrl} alt={book.title} className="w-12 h-16 rounded object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-12 h-16 rounded bg-[var(--surface-light)] flex items-center justify-center flex-shrink-0 text-lg">
+              📚
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-[var(--foreground)] truncate">{book.title}</h4>
+            <p className="text-xs text-[var(--foreground-muted)] truncate">
+              {book.author} · {book.firstPublishYear || 'TBA'}
             </p>
           </div>
         </button>
@@ -574,6 +652,43 @@ export default function CreateContent() {
       );
     }
 
+    if (mediaType === 'book') {
+      const book = result as BookSearchResult;
+      return (
+        <button
+          key={book.workKey}
+          onClick={() => handleSelectLiveResult(result)}
+          className="bg-[var(--background)] rounded-lg overflow-hidden border border-[var(--border)] hover:border-[#f59e0b] transition-all text-left"
+        >
+          <div className="flex gap-4 p-4">
+            {book.coverUrl ? (
+              <img src={book.coverUrl} alt={book.title} className="w-20 h-28 rounded object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-20 h-28 rounded bg-[var(--surface-light)] flex items-center justify-center flex-shrink-0 text-3xl">
+                📚
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-bold text-[var(--foreground)] mb-1 truncate">{book.title}</h3>
+              <p className="text-sm text-[var(--foreground-muted)] mb-1">{book.author}</p>
+              <p className="text-xs text-[var(--foreground-muted)] mb-2">
+                {book.firstPublishYear || 'TBA'}{book.publishers[0] ? ` · ${book.publishers[0]}` : ''}
+              </p>
+              {book.subjects.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {book.subjects.slice(0, 3).map((subject) => (
+                    <span key={subject} className="px-2 py-1 text-xs bg-[var(--surface-light)] text-[var(--foreground)] rounded">
+                      {subject}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </button>
+      );
+    }
+
     if (mediaType === 'music') {
       const mb = result as MBSearchResult;
       return (
@@ -641,7 +756,7 @@ export default function CreateContent() {
           <h2 className="text-2xl font-bold text-[var(--foreground)] mb-4">
             What are you logging?
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {(Object.entries(MEDIA_TYPE_CONFIG) as [MediaType, typeof MEDIA_TYPE_CONFIG[MediaType]][]).map(([type, cfg]) => (
               <button
                 key={type}
@@ -719,7 +834,7 @@ export default function CreateContent() {
                     onClick={() => handleSelectRecentGame(game)}
                     className="group relative px-4 py-2 bg-[var(--background)] hover:bg-[var(--accent)] hover:text-[var(--accent-text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full text-sm font-medium text-[var(--foreground)] transition-all"
                   >
-                    {game.artist ? `${game.artist} - ${game.name}` : game.name}
+                    {getMediaTitle(game)}
                   </button>
                 ))}
               </div>
@@ -775,8 +890,11 @@ export default function CreateContent() {
             )}
             <div>
               <h2 className="text-2xl font-bold text-[var(--foreground)]">
-                {selectedGame.artist ? `${selectedGame.artist} - ` : ''}{selectedGame.name}
+                {getMediaTitle(selectedGame)}
               </h2>
+              {selectedGame.publisher && (
+                <p className="text-sm text-[var(--foreground-muted)]">Published by {selectedGame.publisher}</p>
+              )}
               {selectedGame.director && (
                 <p className="text-sm text-[var(--foreground-muted)]">Directed by {selectedGame.director}</p>
               )}
@@ -880,7 +998,7 @@ export default function CreateContent() {
             )}
             <div className="flex-1">
               <h3 className="text-xl font-bold text-[var(--foreground)]">
-                Quick Note: {selectedGame.artist ? `${selectedGame.artist} - ` : ''}{selectedGame.name}
+                Quick Note: {getMediaTitle(selectedGame)}
               </h3>
             </div>
             <button onClick={() => setContentType(null)} className="text-sm text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors">
@@ -928,7 +1046,7 @@ export default function CreateContent() {
             )}
             <div className="flex-1">
               <h3 className="text-xl font-bold text-[var(--foreground)]">
-                Review: {selectedGame.artist ? `${selectedGame.artist} - ` : ''}{selectedGame.name}
+                Review: {getMediaTitle(selectedGame)}
               </h3>
             </div>
             <button onClick={() => setContentType(null)} className="text-sm text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors">
@@ -1053,7 +1171,7 @@ export default function CreateContent() {
               <textarea
                 value={reviewContent}
                 onChange={(e) => setReviewContent(e.target.value)}
-                placeholder={mediaType === 'guitar' ? '' : "## First Impressions&#10;&#10;From the moment I started..."}
+                placeholder={getReviewContentPlaceholder()}
                 required
                 rows={12}
                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] resize-y font-mono text-sm"

@@ -14,6 +14,7 @@ const TABS: { key: MediaType | 'all'; label: string; icon: string }[] = [
   { key: 'game', label: 'Games', icon: '🎮' },
   { key: 'music', label: 'Music', icon: '🎵' },
   { key: 'guitar', label: 'Guitar', icon: '🎸' },
+  { key: 'book', label: 'Books', icon: '📚' },
   { key: 'movie', label: 'Movies', icon: '🎬' },
   { key: 'tv', label: 'TV', icon: '📺' },
 ];
@@ -23,10 +24,17 @@ function getMediaIcon(mediaType?: MediaType): string {
     case 'game': return '🎮';
     case 'music': return '🎵';
     case 'guitar': return '🎸';
+    case 'book': return '📚';
     case 'movie': return '🎬';
     case 'tv': return '📺';
     default: return '🎮';
   }
+}
+
+function getMediaTitle(game: QuickNote['game'] | Review['game']): string {
+  if (!game) return '';
+  const creator = game.artist || game.author;
+  return creator ? `${creator} - ${game.name}` : game.name;
 }
 
 export default function Home() {
@@ -195,7 +203,7 @@ export default function Home() {
                                 href={`/game/${note.game.id}`}
                                 className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors font-semibold"
                               >
-                                {note.game.artist ? `${note.game.artist} - ` : ''}{note.game.name}
+                                {getMediaTitle(note.game)}
                               </Link>
                             )}
                             <span className="text-[var(--foreground-muted)]">·</span>
@@ -270,7 +278,7 @@ export default function Home() {
                           {review.game && (
                             <p className="text-sm">
                               <span className="text-[var(--accent)] font-semibold">
-                                {review.game.artist ? `${review.game.artist} - ` : ''}{review.game.name}
+                                {getMediaTitle(review.game)}
                               </span>
                             </p>
                           )}

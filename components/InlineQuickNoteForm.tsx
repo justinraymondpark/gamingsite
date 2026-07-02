@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { firestoreHelpers, type Game, type QuickNote, type MediaType } from '@/lib/firebase';
 import { searchGames, type RAWGGame } from '@/lib/rawg';
 import { searchMusic, searchTracks, type MBSearchResult, type MBTrackSearchResult } from '@/lib/musicbrainz';
+import { searchBooks, type BookSearchResult } from '@/lib/books';
 import { searchMovies, searchTV, type TMDBSearchResult } from '@/lib/tmdb';
 
 type Props = {
@@ -14,9 +15,15 @@ const MEDIA_TYPES: { key: MediaType; icon: string; label: string }[] = [
   { key: 'game', icon: '🎮', label: 'Game' },
   { key: 'music', icon: '🎵', label: 'Music' },
   { key: 'guitar', icon: '🎸', label: 'Guitar' },
+  { key: 'book', icon: '📚', label: 'Book' },
   { key: 'movie', icon: '🎬', label: 'Movie' },
   { key: 'tv', icon: '📺', label: 'TV' },
 ];
+
+function getMediaTitle(game: Game): string {
+  const creator = game.artist || game.author;
+  return creator ? `${creator} - ${game.name}` : game.name;
+}
 
 export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
   const [mediaType, setMediaType] = useState<MediaType>('game');
@@ -46,6 +53,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       if (mediaType === 'game') results = (await searchGames(searchQuery)).slice(0, 5);
       else if (mediaType === 'music') results = (await searchMusic(searchQuery)).slice(0, 5);
       else if (mediaType === 'guitar') results = (await searchTracks(searchQuery)).slice(0, 5);
+      else if (mediaType === 'book') results = (await searchBooks(searchQuery)).slice(0, 5);
       else if (mediaType === 'movie') results = (await searchMovies(searchQuery)).slice(0, 5);
       else if (mediaType === 'tv') results = (await searchTV(searchQuery)).slice(0, 5);
       setLiveResults(results);
@@ -108,6 +116,26 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
           genres: track.genres,
           release_title: track.releaseTitle || undefined,
           duration_ms: track.durationMs || undefined,
+        });
+      }
+    } else if (mediaType === 'book') {
+      const book = result as BookSearchResult;
+      const existing = await firestoreHelpers.getByOpenLibraryId(book.workKey);
+      if (existing) {
+        item = existing;
+      } else {
+        item = await firestoreHelpers.addGame({
+          media_type: 'book',
+          openlibrary_id: book.workKey,
+          name: book.title,
+          author: book.author,
+          background_image: book.coverUrl || '',
+          released: book.firstPublishYear ? `${book.firstPublishYear}-01-01` : '',
+          genres: book.subjects,
+          publisher: book.publishers[0] || undefined,
+          isbn: book.isbn || undefined,
+          page_count: book.pageCount || undefined,
+          openlibrary_url: book.openLibraryUrl,
         });
       }
     } else {
@@ -173,6 +201,10 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       const track = result as MBTrackSearchResult;
       return `${track.artist} - ${track.title}`;
     }
+    if (mediaType === 'book') {
+      const book = result as BookSearchResult;
+      return `${book.author} - ${book.title}`;
+    }
     return (result as TMDBSearchResult).title;
   };
 
@@ -190,6 +222,10 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       const year = track.releaseDate ? new Date(track.releaseDate).getFullYear() : 'TBA';
       return track.releaseTitle ? `${track.releaseTitle} · ${year}` : `Track · ${year}`;
     }
+    if (mediaType === 'book') {
+      const book = result as BookSearchResult;
+      return `Book · ${book.firstPublishYear || 'TBA'}`;
+    }
     const tmdb = result as TMDBSearchResult;
     return tmdb.releaseDate ? new Date(tmdb.releaseDate).getFullYear().toString() : 'TBA';
   };
@@ -198,6 +234,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
     if (mediaType === 'game') return `game-${(result as RAWGGame).id}`;
     if (mediaType === 'music') return `mb-${(result as MBSearchResult).releaseGroupId}`;
     if (mediaType === 'guitar') return `mb-track-${(result as MBTrackSearchResult).recordingId}`;
+    if (mediaType === 'book') return `ol-book-${(result as BookSearchResult).workKey}`;
     return `tmdb-${(result as TMDBSearchResult).id}`;
   };
 
@@ -207,7 +244,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       className="bg-[var(--surface)] rounded-lg p-4 border border-[var(--accent-dim)] mb-6 space-y-3"
     >
       {/* Media type pills */}
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap gap-1.5">
         {MEDIA_TYPES.map((mt) => (
           <button
             key={mt.key}
@@ -234,7 +271,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => liveResults.length > 0 && setShowDropdown(true)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-              placeholder={`Search for ${mediaType === 'music' ? 'an album' : mediaType === 'guitar' ? 'a song' : mediaType === 'tv' ? 'a TV show' : `a ${mediaType}`}...`}
+              placeholder={`Search for ${mediaType === 'music' ? 'an album' : mediaType === 'guitar' ? 'a song' : mediaType === 'book' ? 'a book' : mediaType === 'tv' ? 'a TV show' : `a ${mediaType}`}...`}
               className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)]"
             />
             {showDropdown && liveResults.length > 0 && (
@@ -264,7 +301,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
                   onClick={() => handleSelectRecentGame(game)}
                   className="px-3 py-1 bg-[var(--background)] hover:bg-[var(--accent)] hover:text-[var(--accent-text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full text-xs font-medium text-[var(--foreground)] transition-all"
                 >
-                  {game.artist ? `${game.artist} - ${game.name}` : game.name}
+                  {getMediaTitle(game)}
                 </button>
               ))}
             </div>
@@ -276,7 +313,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
             <img src={selectedGame.background_image} alt={selectedGame.name} className="w-10 h-10 rounded object-cover flex-shrink-0" />
           )}
           <span className="text-sm font-semibold text-[var(--foreground)] flex-1">
-            {selectedGame.artist ? `${selectedGame.artist} - ` : ''}{selectedGame.name}
+            {getMediaTitle(selectedGame)}
           </span>
           <button
             type="button"

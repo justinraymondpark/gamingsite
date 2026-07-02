@@ -86,6 +86,42 @@ function getArtistId(artistCredit?: MBArtistCredit[]): string {
   return artistCredit?.[0]?.artist?.id || '';
 }
 
+function quoteSearchValue(value: string): string {
+  return `"${value.trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+function stripLeadingTitleNoise(value: string): string {
+  return value.replace(/^(hey|yo)\s+/i, '').trim();
+}
+
+function getUniqueValues(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function buildRecordingSearchQuery(queryStr: string): string {
+  const query = queryStr.trim();
+  const words = query.split(/\s+/).filter(Boolean);
+
+  if (words.length < 3) {
+    return query;
+  }
+
+  const clauses = [`recording:${quoteSearchValue(query)}`];
+  const maxArtistWords = Math.min(4, words.length - 1);
+
+  for (let artistWordCount = 1; artistWordCount <= maxArtistWords; artistWordCount++) {
+    const artist = words.slice(0, artistWordCount).join(' ');
+    const title = words.slice(artistWordCount).join(' ');
+    const titleVariants = getUniqueValues([title, stripLeadingTitleNoise(title)]);
+
+    titleVariants.forEach((titleVariant) => {
+      clauses.push(`(artistname:${quoteSearchValue(artist)} AND recording:${quoteSearchValue(titleVariant)})`);
+    });
+  }
+
+  return clauses.join(' OR ');
+}
+
 export async function searchMusic(queryStr: string): Promise<MBSearchResult[]> {
   try {
     const response = await fetch(
@@ -116,8 +152,9 @@ export async function searchMusic(queryStr: string): Promise<MBSearchResult[]> {
 
 export async function searchTracks(queryStr: string): Promise<MBTrackSearchResult[]> {
   try {
+    const query = buildRecordingSearchQuery(queryStr);
     const response = await fetch(
-      `${MB_BASE_URL}/recording/?query=${encodeURIComponent(queryStr)}&limit=10&fmt=json`,
+      `${MB_BASE_URL}/recording/?query=${encodeURIComponent(query)}&limit=10&fmt=json`,
       { headers }
     );
 
