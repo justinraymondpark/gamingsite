@@ -119,6 +119,9 @@ export default function GamePage() {
               {game.label && (
                 <div><span className="font-semibold text-[var(--foreground)]">Label:</span> {game.label}</div>
               )}
+              {game.release_title && (
+                <div><span className="font-semibold text-[var(--foreground)]">Release:</span> {game.release_title}</div>
+              )}
               {avgRating && (
                 <div><span className="font-semibold text-[var(--foreground)]">My Rating:</span> <span className="text-[var(--accent)] font-bold">{avgRating}/10</span></div>
               )}

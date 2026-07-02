@@ -61,7 +61,7 @@ export const authHelpers = {
 };
 
 // Media types
-export type MediaType = 'game' | 'music' | 'movie' | 'tv';
+export type MediaType = 'game' | 'music' | 'guitar' | 'movie' | 'tv';
 
 // Type definitions
 export type Game = {
@@ -77,8 +77,12 @@ export type Game = {
   platforms?: string[];
   // Music-specific
   musicbrainz_id?: string;
+  musicbrainz_type?: 'release-group' | 'recording';
+  recording_id?: string;
   artist?: string;
   label?: string;
+  release_title?: string;
+  duration_ms?: number;
   // Movie/TV-specific
   tmdb_id?: number;
   director?: string;

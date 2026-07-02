@@ -72,7 +72,7 @@ export default function ReviewPage() {
           <h1 className="text-4xl font-bold text-[var(--foreground)] mb-3">{review.title}</h1>
           {review.game && (
             <Link href={`/game/${review.game.id}`} className="text-2xl text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors inline-block mb-4">
-              {review.game.name}
+              {review.game.artist ? `${review.game.artist} - ` : ''}{review.game.name}
             </Link>
           )}
           

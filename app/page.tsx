@@ -13,6 +13,7 @@ const TABS: { key: MediaType | 'all'; label: string; icon: string }[] = [
   { key: 'all', label: 'All', icon: '📋' },
   { key: 'game', label: 'Games', icon: '🎮' },
   { key: 'music', label: 'Music', icon: '🎵' },
+  { key: 'guitar', label: 'Guitar', icon: '🎸' },
   { key: 'movie', label: 'Movies', icon: '🎬' },
   { key: 'tv', label: 'TV', icon: '📺' },
 ];
@@ -21,6 +22,7 @@ function getMediaIcon(mediaType?: MediaType): string {
   switch (mediaType) {
     case 'game': return '🎮';
     case 'music': return '🎵';
+    case 'guitar': return '🎸';
     case 'movie': return '🎬';
     case 'tv': return '📺';
     default: return '🎮';

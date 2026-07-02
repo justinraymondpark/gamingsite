@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { firestoreHelpers, type Game, type QuickNote, type MediaType } from '@/lib/firebase';
 import { searchGames, type RAWGGame } from '@/lib/rawg';
-import { searchMusic, type MBSearchResult } from '@/lib/musicbrainz';
+import { searchMusic, searchTracks, type MBSearchResult, type MBTrackSearchResult } from '@/lib/musicbrainz';
 import { searchMovies, searchTV, type TMDBSearchResult } from '@/lib/tmdb';
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
 const MEDIA_TYPES: { key: MediaType; icon: string; label: string }[] = [
   { key: 'game', icon: '🎮', label: 'Game' },
   { key: 'music', icon: '🎵', label: 'Music' },
+  { key: 'guitar', icon: '🎸', label: 'Guitar' },
   { key: 'movie', icon: '🎬', label: 'Movie' },
   { key: 'tv', icon: '📺', label: 'TV' },
 ];
@@ -44,6 +45,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       let results: any[] = [];
       if (mediaType === 'game') results = (await searchGames(searchQuery)).slice(0, 5);
       else if (mediaType === 'music') results = (await searchMusic(searchQuery)).slice(0, 5);
+      else if (mediaType === 'guitar') results = (await searchTracks(searchQuery)).slice(0, 5);
       else if (mediaType === 'movie') results = (await searchMovies(searchQuery)).slice(0, 5);
       else if (mediaType === 'tv') results = (await searchTV(searchQuery)).slice(0, 5);
       setLiveResults(results);
@@ -80,11 +82,32 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
         item = await firestoreHelpers.addGame({
           media_type: 'music',
           musicbrainz_id: mb.releaseGroupId,
+          musicbrainz_type: 'release-group',
           name: mb.title,
           artist: mb.artist,
           background_image: mb.coverArtUrl || '',
           released: mb.releaseDate,
           genres: mb.genres,
+        });
+      }
+    } else if (mediaType === 'guitar') {
+      const track = result as MBTrackSearchResult;
+      const existing = await firestoreHelpers.getByMusicBrainzId(track.recordingId);
+      if (existing) {
+        item = existing;
+      } else {
+        item = await firestoreHelpers.addGame({
+          media_type: 'guitar',
+          musicbrainz_id: track.recordingId,
+          musicbrainz_type: 'recording',
+          recording_id: track.recordingId,
+          name: track.title,
+          artist: track.artist,
+          background_image: track.coverArtUrl || '',
+          released: track.releaseDate,
+          genres: track.genres,
+          release_title: track.releaseTitle || undefined,
+          duration_ms: track.durationMs || undefined,
         });
       }
     } else {
@@ -146,6 +169,10 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       const mb = result as MBSearchResult;
       return `${mb.artist} - ${mb.title}`;
     }
+    if (mediaType === 'guitar') {
+      const track = result as MBTrackSearchResult;
+      return `${track.artist} - ${track.title}`;
+    }
     return (result as TMDBSearchResult).title;
   };
 
@@ -158,6 +185,11 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       const mb = result as MBSearchResult;
       return `${mb.type} · ${mb.releaseDate ? new Date(mb.releaseDate).getFullYear() : 'TBA'}`;
     }
+    if (mediaType === 'guitar') {
+      const track = result as MBTrackSearchResult;
+      const year = track.releaseDate ? new Date(track.releaseDate).getFullYear() : 'TBA';
+      return track.releaseTitle ? `${track.releaseTitle} · ${year}` : `Track · ${year}`;
+    }
     const tmdb = result as TMDBSearchResult;
     return tmdb.releaseDate ? new Date(tmdb.releaseDate).getFullYear().toString() : 'TBA';
   };
@@ -165,6 +197,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
   const getResultKey = (result: any): string => {
     if (mediaType === 'game') return `game-${(result as RAWGGame).id}`;
     if (mediaType === 'music') return `mb-${(result as MBSearchResult).releaseGroupId}`;
+    if (mediaType === 'guitar') return `mb-track-${(result as MBTrackSearchResult).recordingId}`;
     return `tmdb-${(result as TMDBSearchResult).id}`;
   };
 
@@ -201,7 +234,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => liveResults.length > 0 && setShowDropdown(true)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-              placeholder={`Search for ${mediaType === 'music' ? 'an album' : mediaType === 'tv' ? 'a TV show' : `a ${mediaType}`}...`}
+              placeholder={`Search for ${mediaType === 'music' ? 'an album' : mediaType === 'guitar' ? 'a song' : mediaType === 'tv' ? 'a TV show' : `a ${mediaType}`}...`}
               className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)]"
             />
             {showDropdown && liveResults.length > 0 && (
@@ -259,7 +292,7 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder={selectedGame ? "Quick thought..." : "Select something first..."}
+        placeholder={selectedGame ? (mediaType === 'guitar' ? '' : "Quick thought...") : "Select something first..."}
         disabled={!selectedGame}
         rows={2}
         className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] resize-none disabled:opacity-50"

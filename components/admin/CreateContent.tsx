@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { searchGames, type RAWGGame } from '@/lib/rawg';
-import { searchMusic, type MBSearchResult } from '@/lib/musicbrainz';
+import { searchMusic, searchTracks, type MBSearchResult, type MBTrackSearchResult } from '@/lib/musicbrainz';
 import { searchMovies, searchTV, getMovieDetails, getTVDetails, getGenreNames, type TMDBSearchResult } from '@/lib/tmdb';
 import { firestoreHelpers, type Game, type MediaType } from '@/lib/firebase';
 import ImageUpload from './ImageUpload';
@@ -18,6 +18,7 @@ const PLATFORMS = [
 const MEDIA_TYPE_CONFIG: Record<MediaType, { label: string; icon: string; searchPlaceholder: string; color: string }> = {
   game: { label: 'Games', icon: '🎮', searchPlaceholder: 'Search for a game...', color: 'var(--accent)' },
   music: { label: 'Music', icon: '🎵', searchPlaceholder: 'Search for an album or artist...', color: '#a855f7' },
+  guitar: { label: 'Guitar', icon: '🎸', searchPlaceholder: 'Search for a song...', color: '#22c55e' },
   movie: { label: 'Movies', icon: '🎬', searchPlaceholder: 'Search for a movie...', color: '#ef4444' },
   tv: { label: 'TV Shows', icon: '📺', searchPlaceholder: 'Search for a TV show...', color: '#3b82f6' },
 };
@@ -81,6 +82,8 @@ export default function CreateContent() {
         results = (await searchGames(searchQuery)).slice(0, 5);
       } else if (mediaType === 'music') {
         results = (await searchMusic(searchQuery)).slice(0, 5);
+      } else if (mediaType === 'guitar') {
+        results = (await searchTracks(searchQuery)).slice(0, 5);
       } else if (mediaType === 'movie') {
         results = (await searchMovies(searchQuery)).slice(0, 5);
       } else if (mediaType === 'tv') {
@@ -115,6 +118,8 @@ export default function CreateContent() {
       results = await searchGames(searchQuery);
     } else if (mediaType === 'music') {
       results = await searchMusic(searchQuery);
+    } else if (mediaType === 'guitar') {
+      results = await searchTracks(searchQuery);
     } else if (mediaType === 'movie') {
       results = await searchMovies(searchQuery);
     } else if (mediaType === 'tv') {
@@ -158,6 +163,7 @@ export default function CreateContent() {
         selectedItem = await firestoreHelpers.addGame({
           media_type: 'music',
           musicbrainz_id: result.releaseGroupId,
+          musicbrainz_type: 'release-group',
           name: `${result.title}`,
           artist: result.artist,
           background_image: result.coverArtUrl || '',
@@ -166,6 +172,34 @@ export default function CreateContent() {
         });
       } catch (error) {
         alert('Failed to add album');
+        return;
+      }
+    }
+    finishSelection(selectedItem);
+  };
+
+  const handleSelectTrack = async (result: MBTrackSearchResult) => {
+    const existing = await firestoreHelpers.getByMusicBrainzId(result.recordingId);
+    let selectedItem: Game;
+    if (existing) {
+      selectedItem = existing;
+    } else {
+      try {
+        selectedItem = await firestoreHelpers.addGame({
+          media_type: 'guitar',
+          musicbrainz_id: result.recordingId,
+          musicbrainz_type: 'recording',
+          recording_id: result.recordingId,
+          name: result.title,
+          artist: result.artist,
+          background_image: result.coverArtUrl || '',
+          released: result.releaseDate,
+          genres: result.genres,
+          release_title: result.releaseTitle || undefined,
+          duration_ms: result.durationMs || undefined,
+        });
+      } catch (error) {
+        alert('Failed to add song');
         return;
       }
     }
@@ -227,6 +261,7 @@ export default function CreateContent() {
     if (!mediaType) return;
     if (mediaType === 'game') handleSelectGame(result);
     else if (mediaType === 'music') handleSelectMusic(result);
+    else if (mediaType === 'guitar') handleSelectTrack(result);
     else handleSelectTMDB(result);
   };
 
@@ -341,6 +376,44 @@ export default function CreateContent() {
     );
   };
 
+  const getFindLabel = () => {
+    if (mediaType === 'music') return 'an Album';
+    if (mediaType === 'guitar') return 'a Song';
+    if (mediaType === 'tv') return 'a TV Show';
+    return `a ${config?.label.slice(0, -1)}`;
+  };
+
+  const getSearchProviderLabel = () => {
+    if (mediaType === 'game') return 'RAWG';
+    if (mediaType === 'music' || mediaType === 'guitar') return 'MusicBrainz';
+    return 'TMDB';
+  };
+
+  const getNotePlaceholder = () => {
+    if (mediaType === 'guitar') return '';
+    if (mediaType === 'music') return 'This album hits different...';
+    if (mediaType === 'movie') return 'Just watched this and...';
+    return 'Just beat the first boss and...';
+  };
+
+  const getReviewTitlePlaceholder = () => {
+    if (mediaType === 'guitar') return '';
+    if (mediaType === 'music') return 'A genre-defining masterpiece';
+    return 'A masterpiece of storytelling';
+  };
+
+  const getProPlaceholder = () => {
+    if (mediaType === 'guitar') return '';
+    if (mediaType === 'music') return 'Amazing production';
+    return 'Beautiful art direction';
+  };
+
+  const getConPlaceholder = () => {
+    if (mediaType === 'guitar') return '';
+    if (mediaType === 'music') return 'Too short';
+    return 'Performance issues';
+  };
+
   // Render a live search result item based on media type
   const renderLiveResult = (result: any, index: number) => {
     if (!mediaType) return null;
@@ -361,6 +434,32 @@ export default function CreateContent() {
             <h4 className="text-sm font-bold text-[var(--foreground)] truncate">{game.name}</h4>
             <p className="text-xs text-[var(--foreground-muted)]">
               {game.released ? new Date(game.released).getFullYear() : 'TBA'}
+            </p>
+          </div>
+        </button>
+      );
+    }
+
+    if (mediaType === 'guitar') {
+      const track = result as MBTrackSearchResult;
+      return (
+        <button
+          key={track.recordingId}
+          type="button"
+          onClick={() => handleSelectLiveResult(result)}
+          className="w-full flex gap-3 p-3 hover:bg-[var(--background)] transition-colors text-left border-b border-[var(--border)] last:border-b-0"
+        >
+          {track.coverArtUrl ? (
+            <img src={track.coverArtUrl} alt={track.title} className="w-12 h-12 rounded object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-12 h-12 rounded bg-[var(--surface-light)] flex items-center justify-center flex-shrink-0 text-lg">
+              🎸
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-[var(--foreground)] truncate">{track.title}</h4>
+            <p className="text-xs text-[var(--foreground-muted)] truncate">
+              {track.artist}{track.releaseTitle ? ` · ${track.releaseTitle}` : ''}
             </p>
           </div>
         </button>
@@ -447,6 +546,34 @@ export default function CreateContent() {
       );
     }
 
+    if (mediaType === 'guitar') {
+      const track = result as MBTrackSearchResult;
+      return (
+        <button
+          key={track.recordingId}
+          onClick={() => handleSelectLiveResult(result)}
+          className="bg-[var(--background)] rounded-lg overflow-hidden border border-[var(--border)] hover:border-[#22c55e] transition-all text-left"
+        >
+          <div className="flex gap-4 p-4">
+            {track.coverArtUrl ? (
+              <img src={track.coverArtUrl} alt={track.title} className="w-24 h-24 rounded object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-24 h-24 rounded bg-[var(--surface-light)] flex items-center justify-center flex-shrink-0 text-3xl">
+                🎸
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-bold text-[var(--foreground)] mb-1 truncate">{track.title}</h3>
+              <p className="text-sm text-[var(--foreground-muted)] mb-1">{track.artist}</p>
+              <p className="text-xs text-[var(--foreground-muted)] mb-2">
+                {track.releaseTitle ? `${track.releaseTitle} · ` : ''}{track.releaseDate ? new Date(track.releaseDate).getFullYear() : 'TBA'}
+              </p>
+            </div>
+          </div>
+        </button>
+      );
+    }
+
     if (mediaType === 'music') {
       const mb = result as MBSearchResult;
       return (
@@ -514,7 +641,7 @@ export default function CreateContent() {
           <h2 className="text-2xl font-bold text-[var(--foreground)] mb-4">
             What are you logging?
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {(Object.entries(MEDIA_TYPE_CONFIG) as [MediaType, typeof MEDIA_TYPE_CONFIG[MediaType]][]).map(([type, cfg]) => (
               <button
                 key={type}
@@ -536,7 +663,7 @@ export default function CreateContent() {
         <div className="bg-[var(--surface)] rounded-lg p-6 border border-[var(--border)]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-[var(--foreground)]">
-              {config?.icon} Find {mediaType === 'music' ? 'an Album' : mediaType === 'tv' ? 'a TV Show' : `a ${config?.label.slice(0, -1)}`}
+              {config?.icon} Find {getFindLabel()}
             </h2>
             <button
               onClick={resetAll}
@@ -546,7 +673,7 @@ export default function CreateContent() {
             </button>
           </div>
           <p className="text-[var(--foreground-muted)] mb-6">
-            Search {mediaType === 'game' ? 'RAWG' : mediaType === 'music' ? 'MusicBrainz' : 'TMDB'} to find what you want to write about
+            Search {getSearchProviderLabel()} to find what you want to write about
           </p>
 
           <div className="relative mb-6">
@@ -616,7 +743,7 @@ export default function CreateContent() {
                     onClick={() => setShowManualAdd(true)}
                     className="text-sm text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors"
                   >
-                    Can't find it? <span className="underline">Add manually</span>
+                    Can&apos;t find it? <span className="underline">Add manually</span>
                   </button>
                 </div>
               ) : (
@@ -766,7 +893,7 @@ export default function CreateContent() {
               <textarea
                 value={noteContent}
                 onChange={(e) => setNoteContent(e.target.value)}
-                placeholder={mediaType === 'music' ? 'This album hits different...' : mediaType === 'movie' ? 'Just watched this and...' : 'Just beat the first boss and...'}
+                placeholder={getNotePlaceholder()}
                 required
                 rows={4}
                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] resize-none"
@@ -816,7 +943,7 @@ export default function CreateContent() {
                 type="text"
                 value={reviewTitle}
                 onChange={(e) => setReviewTitle(e.target.value)}
-                placeholder={mediaType === 'music' ? 'A genre-defining masterpiece' : 'A masterpiece of storytelling'}
+                placeholder={getReviewTitlePlaceholder()}
                 required
                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)]"
               />
@@ -883,7 +1010,7 @@ export default function CreateContent() {
                     type="text"
                     value={pro}
                     onChange={(e) => { const newPros = [...pros]; newPros[index] = e.target.value; setPros(newPros); }}
-                    placeholder={mediaType === 'music' ? 'Amazing production' : 'Beautiful art direction'}
+                    placeholder={getProPlaceholder()}
                     className="flex-1 px-4 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)]"
                   />
                   {pros.length > 1 && (
@@ -906,7 +1033,7 @@ export default function CreateContent() {
                     type="text"
                     value={con}
                     onChange={(e) => { const newCons = [...cons]; newCons[index] = e.target.value; setCons(newCons); }}
-                    placeholder={mediaType === 'music' ? 'Too short' : 'Performance issues'}
+                    placeholder={getConPlaceholder()}
                     className="flex-1 px-4 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)]"
                   />
                   {cons.length > 1 && (
@@ -926,7 +1053,7 @@ export default function CreateContent() {
               <textarea
                 value={reviewContent}
                 onChange={(e) => setReviewContent(e.target.value)}
-                placeholder="## First Impressions&#10;&#10;From the moment I started..."
+                placeholder={mediaType === 'guitar' ? '' : "## First Impressions&#10;&#10;From the moment I started..."}
                 required
                 rows={12}
                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] resize-y font-mono text-sm"
