@@ -362,6 +362,32 @@ export const firestoreHelpers = {
     return reviews;
   },
 
+  // Get recent reviews with cursor-based pagination
+  async getRecentReviewsPaginated(limitCount: number = 5, lastCreatedAt?: Date, mediaType?: MediaType): Promise<Review[]> {
+    const reviewsRef = collection(db, 'reviews');
+    const constraints: any[] = [];
+    if (mediaType) constraints.push(where('media_type', '==', mediaType));
+    constraints.push(orderBy('created_at', 'desc'));
+    if (lastCreatedAt) constraints.push(startAfter(Timestamp.fromDate(lastCreatedAt)));
+    constraints.push(limit(limitCount));
+    const q = query(reviewsRef, ...constraints);
+    const snapshot = await getDocs(q);
+
+    const reviews = await Promise.all(
+      snapshot.docs.map(async (reviewDoc) => {
+        const reviewData = convertTimestamp(reviewDoc.data());
+        const game = reviewData.game_id ? await this.getGameById(reviewData.game_id) : null;
+        return {
+          id: reviewDoc.id,
+          ...reviewData,
+          game
+        } as Review;
+      })
+    );
+
+    return reviews;
+  },
+
   // Get reviews for a specific game
   async getReviewsByGameId(gameId: string): Promise<Review[]> {
     const reviewsRef = collection(db, 'reviews');
