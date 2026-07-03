@@ -48,7 +48,7 @@ export default function GamePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="loader" aria-label="Loading" />
+        <div className="text-[var(--foreground-muted)]">Loading...</div>
       </div>
     );
   }
@@ -72,8 +72,8 @@ export default function GamePage() {
   const creator = game.artist || game.author;
 
   return (
-    <div className="min-h-screen">
-      <header className="site-header">
+    <div className="min-h-screen bg-[var(--background)]">
+      <header className="border-b border-[var(--border)] bg-[var(--surface)]">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <Link href="/" className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors text-sm">
             ← Back to Home
@@ -92,10 +92,10 @@ export default function GamePage() {
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--background)] via-[var(--background)]/50 to-transparent" />
           </div>
         )}
-
+        
         <div className="max-w-7xl mx-auto px-4 -mt-32 relative z-10">
-          <div className="card rise p-8">
-            <h1 className="hero-title text-[var(--foreground)] mb-2">
+          <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-8 shadow-xl">
+            <h1 className="text-5xl font-bold text-[var(--foreground)] mb-2">
               {creator ? `${creator} - ` : ''}{game.name}
             </h1>
             {game.director && (
@@ -147,17 +147,17 @@ export default function GamePage() {
                 </a>
               )}
               {avgRating && (
-                <div><span className="font-semibold text-[var(--foreground)]">My Rating:</span> <span className="neon-accent font-bold">{avgRating}/10</span></div>
+                <div><span className="font-semibold text-[var(--foreground)]">My Rating:</span> <span className="text-[var(--accent)] font-bold">{avgRating}/10</span></div>
               )}
             </div>
 
             <div className="flex gap-6 mt-6">
               <div className="text-center">
-                <div className="font-display text-3xl neon-accent">{reviews.length}</div>
+                <div className="text-3xl font-bold text-[var(--accent)]">{reviews.length}</div>
                 <div className="text-sm text-[var(--foreground-muted)]">{reviews.length === 1 ? 'Review' : 'Reviews'}</div>
               </div>
               <div className="text-center">
-                <div className="font-display text-3xl neon-accent">{notes.length}</div>
+                <div className="text-3xl font-bold text-[var(--accent)]">{notes.length}</div>
                 <div className="text-sm text-[var(--foreground-muted)]">{notes.length === 1 ? 'Quick Note' : 'Quick Notes'}</div>
               </div>
             </div>
@@ -177,13 +177,9 @@ export default function GamePage() {
               ...reviews.map(r => ({ type: 'review' as const, data: r, date: new Date(r.created_at) })),
             ]
               .sort((a, b) => b.date.getTime() - a.date.getTime())
-              .map((item, i) =>
+              .map((item) =>
                 item.type === 'note' ? (
-                  <div
-                    key={`note-${item.data.id}`}
-                    className="card rise p-5"
-                    style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
-                  >
+                  <div key={`note-${item.data.id}`} className="bg-[var(--surface)] rounded-lg p-5 border border-[var(--border)]">
                     <p className="text-sm text-[var(--foreground-muted)] mb-2">
                       {item.date.toLocaleDateString()} at {item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
@@ -195,11 +191,11 @@ export default function GamePage() {
                     )}
                   </div>
                 ) : (
-                  <Link key={`review-${item.data.id}`} href={`/review/${item.data.id}`} className="block group rise" style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}>
-                    <div className="card card-hover p-6">
+                  <Link key={`review-${item.data.id}`} href={`/review/${item.data.id}`} className="block group">
+                    <div className="bg-[var(--surface)] rounded-lg p-6 border border-[var(--border)] hover:border-[var(--accent)] transition-all hover:transform hover:scale-[1.01]">
                       <div className="flex items-start justify-between gap-4 mb-3">
-                        <h3 className="font-display text-xl text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{item.data.title}</h3>
-                        <span className="badge-rating px-3 py-1 text-sm flex-shrink-0">{item.data.rating}/10</span>
+                        <h3 className="text-xl font-bold text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{item.data.title}</h3>
+                        <span className="px-3 py-1 bg-[var(--accent)] text-[var(--accent-text)] rounded-full text-sm font-bold flex-shrink-0">{item.data.rating}/10</span>
                       </div>
                       <div className="flex flex-wrap gap-4 text-sm text-[var(--foreground-muted)] mb-3">
                         {item.data.platforms_played?.length > 0 && <span>🎮 {item.data.platforms_played.join(', ')}</span>}
