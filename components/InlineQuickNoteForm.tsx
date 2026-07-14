@@ -149,6 +149,8 @@ export default function InlineQuickNoteForm({ onNoteCreated }: Props) {
           tmdb_id: tmdb.id,
           name: tmdb.title,
           background_image: tmdb.backdropUrl || tmdb.posterUrl || '',
+          poster_image: tmdb.posterUrl || undefined,
+          backdrop_image: tmdb.backdropUrl || undefined,
           released: tmdb.releaseDate,
           genres: [],
         });

@@ -281,6 +281,8 @@ export default function CreateContent() {
           tmdb_id: result.id,
           name: result.title,
           background_image: result.backdropUrl || result.posterUrl || '',
+          poster_image: result.posterUrl || undefined,
+          backdrop_image: result.backdropUrl || undefined,
           released: result.releaseDate,
           genres,
           director: director || undefined,

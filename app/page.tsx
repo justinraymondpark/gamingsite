@@ -42,6 +42,18 @@ function getMediaTitle(game: QuickNote['game'] | Review['game']): string {
   return creator ? `${creator} - ${game.name}` : game.name;
 }
 
+function usesPosterThumbnail(mediaType?: MediaType): boolean {
+  return mediaType === 'book' || mediaType === 'movie' || mediaType === 'tv';
+}
+
+function getThumbnailImage(game: QuickNote['game'] | Review['game']): string {
+  if (!game) return '';
+  if (game.media_type === 'movie' || game.media_type === 'tv') {
+    return game.poster_image || game.background_image;
+  }
+  return game.background_image;
+}
+
 function getFeedItems(notes: QuickNote[], reviews: Review[]): FeedItem[] {
   return [
     ...notes.map((note) => ({
@@ -153,13 +165,17 @@ export default function Home() {
       className="bg-[var(--surface)] rounded-lg p-5 border border-[var(--border)] hover:border-[var(--accent-dim)] transition-colors"
     >
       <div className="flex gap-4">
-        {note.game?.background_image && (
+        {getThumbnailImage(note.game) && (
           <img
-            src={note.game.background_image}
-            alt={note.game.name}
+            src={getThumbnailImage(note.game)}
+            alt={note.game?.name || 'Media'}
             className={`rounded flex-shrink-0 ${
-              note.media_type === 'book'
-                ? 'w-16 sm:w-20 aspect-[2/3] object-contain bg-[var(--surface-light)]'
+              usesPosterThumbnail(note.media_type)
+                ? `w-16 sm:w-20 aspect-[2/3] ${
+                    note.media_type === 'book'
+                      ? 'object-contain bg-[var(--surface-light)]'
+                      : 'object-cover'
+                  }`
                 : 'w-16 h-16 sm:w-20 sm:h-20 object-cover'
             }`}
           />
@@ -199,13 +215,17 @@ export default function Home() {
       className="bg-[var(--surface)] rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--accent)] transition-colors group"
     >
       <div className="flex gap-4 p-5">
-        {(review.cover_image || review.game?.background_image) && (
+        {(review.cover_image || getThumbnailImage(review.game)) && (
           <img
-            src={review.cover_image || review.game?.background_image || ''}
+            src={review.cover_image || getThumbnailImage(review.game)}
             alt={review.game?.name || 'Media'}
             className={`rounded flex-shrink-0 ${
-              review.media_type === 'book'
-                ? 'w-16 sm:w-20 aspect-[2/3] object-contain bg-[var(--surface-light)]'
+              usesPosterThumbnail(review.media_type)
+                ? `w-16 sm:w-20 aspect-[2/3] ${
+                    review.media_type === 'book'
+                      ? 'object-contain bg-[var(--surface-light)]'
+                      : 'object-cover'
+                  }`
                 : 'w-20 h-24 sm:w-24 sm:h-28 object-cover'
             }`}
           />

@@ -92,6 +92,8 @@ export type Game = {
   openlibrary_url?: string;
   // Movie/TV-specific
   tmdb_id?: number;
+  poster_image?: string;
+  backdrop_image?: string;
   director?: string;
   cast?: string[];
   runtime?: number;
