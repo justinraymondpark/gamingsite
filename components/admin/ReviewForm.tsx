@@ -293,7 +293,7 @@ export default function ReviewForm() {
               className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] resize-y font-mono text-sm"
             />
             <p className="mt-2 text-xs text-[var(--foreground-muted)]">
-              Tip: Use ## for headings, **bold**, *italic*, - for lists
+              Tip: Use ## for headings, **bold**, *italic*, - for lists, and ||spoilers||
             </p>
           </div>
 

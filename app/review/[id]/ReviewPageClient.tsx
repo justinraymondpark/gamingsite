@@ -2,8 +2,8 @@
 
 import { firestoreHelpers, Review } from '@/lib/firebase';
 import Link from 'next/link';
-import ReactMarkdown from 'react-markdown';
 import ImageGallery from '@/components/ImageGallery';
+import SpoilerMarkdown from '@/components/SpoilerMarkdown';
 import { useEffect, useState } from 'react';
 
 function getMediaTitle(review: Review): string {
@@ -127,7 +127,7 @@ export default function ReviewPage() {
 
         <div className="bg-[var(--surface)] rounded-lg p-8 border border-[var(--border)]">
           <div className="prose-custom text-[var(--foreground)]">
-            <ReactMarkdown
+            <SpoilerMarkdown
               components={{
                 h2: ({ children }) => <h2 className="text-2xl font-bold text-[var(--accent)] mt-8 mb-4 first:mt-0">{children}</h2>,
                 h3: ({ children }) => <h3 className="text-xl font-semibold text-[var(--foreground)] mt-6 mb-3">{children}</h3>,
@@ -139,7 +139,7 @@ export default function ReviewPage() {
               }}
             >
               {review.content}
-            </ReactMarkdown>
+            </SpoilerMarkdown>
           </div>
         </div>
 

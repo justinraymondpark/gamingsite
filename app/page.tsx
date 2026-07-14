@@ -4,6 +4,7 @@ import { firestoreHelpers, QuickNote, Review, type MediaType } from '@/lib/fireb
 import Link from 'next/link';
 import QuickNoteImages from '@/components/QuickNoteImages';
 import InlineQuickNoteForm from '@/components/InlineQuickNoteForm';
+import SpoilerText from '@/components/SpoilerText';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 
@@ -177,7 +178,7 @@ export default function Home() {
           </div>
 
           <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">
-            {note.content}
+            <SpoilerText>{note.content}</SpoilerText>
           </p>
 
           {note.images && note.images.length > 0 && (
@@ -189,47 +190,49 @@ export default function Home() {
   );
 
   const renderReviewItem = (review: Review) => (
-    <Link
+    <article
       key={`review-${review.id}`}
-      href={`/review/${review.id}`}
-      className="block group"
+      className="bg-[var(--surface)] rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--accent)] transition-colors group"
     >
-      <article className="bg-[var(--surface)] rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--accent)] transition-colors">
-        <div className="flex gap-4 p-5">
-          {(review.cover_image || review.game?.background_image) && (
-            <img
-              src={review.cover_image || review.game?.background_image || ''}
-              alt={review.game?.name || 'Media'}
-              className="w-20 h-24 sm:w-24 sm:h-28 rounded object-cover flex-shrink-0"
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="text-sm">{getMediaIcon(review.media_type)}</span>
-              <span className="px-2 py-1 bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold rounded">
-                {review.rating}/10
-              </span>
-              <span className="text-xs text-[var(--foreground-muted)]">
-                {new Date(review.created_at).toLocaleDateString()}
-              </span>
-            </div>
-            <h3 className="text-lg sm:text-xl font-bold text-[var(--foreground)] mb-1 group-hover:text-[var(--accent)] transition-colors line-clamp-2">
-              {review.title}
-            </h3>
-            {review.game && (
-              <p className="text-sm text-[var(--accent)] font-semibold mb-2 truncate">
-                {getMediaTitle(review.game)}
-              </p>
-            )}
-            {review.content && (
-              <p className="text-sm text-[var(--foreground-muted)] line-clamp-2">
-                {review.content}
-              </p>
-            )}
+      <div className="flex gap-4 p-5">
+        {(review.cover_image || review.game?.background_image) && (
+          <img
+            src={review.cover_image || review.game?.background_image || ''}
+            alt={review.game?.name || 'Media'}
+            className="w-20 h-24 sm:w-24 sm:h-28 rounded object-cover flex-shrink-0"
+          />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-sm">{getMediaIcon(review.media_type)}</span>
+            <span className="px-2 py-1 bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold rounded">
+              {review.rating}/10
+            </span>
+            <span className="text-xs text-[var(--foreground-muted)]">
+              {new Date(review.created_at).toLocaleDateString()}
+            </span>
           </div>
+          <h3 className="text-lg sm:text-xl font-bold mb-1 line-clamp-2">
+            <Link
+              href={`/review/${review.id}`}
+              className="text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors"
+            >
+              {review.title}
+            </Link>
+          </h3>
+          {review.game && (
+            <p className="text-sm text-[var(--accent)] font-semibold mb-2 truncate">
+              {getMediaTitle(review.game)}
+            </p>
+          )}
+          {review.content && (
+            <p className="text-sm text-[var(--foreground-muted)] line-clamp-2">
+              <SpoilerText>{review.content}</SpoilerText>
+            </p>
+          )}
         </div>
-      </article>
-    </Link>
+      </div>
+    </article>
   );
 
   if (loading) {

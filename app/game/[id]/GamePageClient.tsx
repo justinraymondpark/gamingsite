@@ -3,6 +3,7 @@
 import { firestoreHelpers, Game, QuickNote, Review } from '@/lib/firebase';
 import Link from 'next/link';
 import QuickNoteImages from '@/components/QuickNoteImages';
+import SpoilerText from '@/components/SpoilerText';
 import { useEffect, useState } from 'react';
 
 export default function GamePage() {
@@ -183,7 +184,9 @@ export default function GamePage() {
                     <p className="text-sm text-[var(--foreground-muted)] mb-2">
                       {item.date.toLocaleDateString()} at {item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                    <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">{item.data.content}</p>
+                    <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">
+                      <SpoilerText>{item.data.content}</SpoilerText>
+                    </p>
                     {item.data.images?.length > 0 && (
                       <div className="mt-3">
                         <QuickNoteImages images={item.data.images} />
@@ -191,21 +194,29 @@ export default function GamePage() {
                     )}
                   </div>
                 ) : (
-                  <Link key={`review-${item.data.id}`} href={`/review/${item.data.id}`} className="block group">
-                    <div className="bg-[var(--surface)] rounded-lg p-6 border border-[var(--border)] hover:border-[var(--accent)] transition-all hover:transform hover:scale-[1.01]">
-                      <div className="flex items-start justify-between gap-4 mb-3">
-                        <h3 className="text-xl font-bold text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{item.data.title}</h3>
-                        <span className="px-3 py-1 bg-[var(--accent)] text-[var(--accent-text)] rounded-full text-sm font-bold flex-shrink-0">{item.data.rating}/10</span>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-[var(--foreground-muted)] mb-3">
-                        {item.data.platforms_played?.length > 0 && <span>🎮 {item.data.platforms_played.join(', ')}</span>}
-                        {item.data.playtime_hours && <span>⏱️ {item.data.playtime_hours}h played</span>}
-                        <span>📅 {item.date.toLocaleDateString()}</span>
-                      </div>
-                      {item.data.content && <p className="text-[var(--foreground-muted)] line-clamp-2">{item.data.content.substring(0, 200)}...</p>}
-                      <div className="mt-4 text-[var(--accent)] text-sm font-semibold">Read full review →</div>
+                  <article key={`review-${item.data.id}`} className="bg-[var(--surface)] rounded-lg p-6 border border-[var(--border)] hover:border-[var(--accent)] transition-all hover:transform hover:scale-[1.01] group">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <h3 className="text-xl font-bold">
+                        <Link href={`/review/${item.data.id}`} className="text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">
+                          {item.data.title}
+                        </Link>
+                      </h3>
+                      <span className="px-3 py-1 bg-[var(--accent)] text-[var(--accent-text)] rounded-full text-sm font-bold flex-shrink-0">{item.data.rating}/10</span>
                     </div>
-                  </Link>
+                    <div className="flex flex-wrap gap-4 text-sm text-[var(--foreground-muted)] mb-3">
+                      {item.data.platforms_played?.length > 0 && <span>🎮 {item.data.platforms_played.join(', ')}</span>}
+                      {item.data.playtime_hours && <span>⏱️ {item.data.playtime_hours}h played</span>}
+                      <span>📅 {item.date.toLocaleDateString()}</span>
+                    </div>
+                    {item.data.content && (
+                      <p className="text-[var(--foreground-muted)] line-clamp-2">
+                        <SpoilerText>{item.data.content}</SpoilerText>
+                      </p>
+                    )}
+                    <Link href={`/review/${item.data.id}`} className="inline-block mt-4 text-[var(--accent)] text-sm font-semibold hover:text-[var(--accent-hover)]">
+                      Read full review →
+                    </Link>
+                  </article>
                 )
               )}
           </div>
