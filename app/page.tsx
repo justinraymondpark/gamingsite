@@ -157,7 +157,11 @@ export default function Home() {
           <img
             src={note.game.background_image}
             alt={note.game.name}
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded object-cover flex-shrink-0"
+            className={`rounded flex-shrink-0 ${
+              note.media_type === 'book'
+                ? 'w-16 sm:w-20 aspect-[2/3] object-contain bg-[var(--surface-light)]'
+                : 'w-16 h-16 sm:w-20 sm:h-20 object-cover'
+            }`}
           />
         )}
         <div className="flex-1 min-w-0">
@@ -199,7 +203,11 @@ export default function Home() {
           <img
             src={review.cover_image || review.game?.background_image || ''}
             alt={review.game?.name || 'Media'}
-            className="w-20 h-24 sm:w-24 sm:h-28 rounded object-cover flex-shrink-0"
+            className={`rounded flex-shrink-0 ${
+              review.media_type === 'book'
+                ? 'w-16 sm:w-20 aspect-[2/3] object-contain bg-[var(--surface-light)]'
+                : 'w-20 h-24 sm:w-24 sm:h-28 object-cover'
+            }`}
           />
         )}
         <div className="flex-1 min-w-0">
